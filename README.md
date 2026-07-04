@@ -1,0 +1,1 @@
+# PiCedit Web\n\nFree browser-based photo editor.

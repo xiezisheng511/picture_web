@@ -1,0 +1,111 @@
+{
+  "site": {
+    "name": "PicEdit",
+    "tagline": "Free browser-based photo editor",
+    "taglineEn": "Free browser-based photo editor"
+  },
+  "nav": {
+    "home": "Home",
+    "tools": "Tools",
+    "about": "About",
+    "language": "Language"
+  },
+  "home": {
+    "heroTitle": "Simple, fast, privacy-friendly photo editor",
+    "heroSubtitle": "No login required. Files never leave your device. Everything runs in your browser.",
+    "ctaPrimary": "Get started",
+    "ctaSecondary": "Learn more",
+    "featuresTitle": "Why PicEdit",
+    "toolsTitle": "Choose a tool",
+    "trustBadge": "🔒 Files never leave your device",
+    "adNote": "Advertisement",
+    "seoTitle": "Why PicEdit?",
+    "seoContent": "PicEdit is a completely free online photo editor that provides background color changes, watermark removal, AI cutouts, and other common features. All processing happens locally in your browser - files are never uploaded to any server, protecting your privacy. Whether you need ID photos, social media graphics, or e-commerce product shots, PicEdit helps you get it done quickly."
+  },
+  "tools": {
+    "bgColor": {
+      "title": "Change Background",
+      "desc": "Swap photo background in one click"
+    },
+    "removeWatermark": {
+      "title": "Remove Watermark",
+      "desc": "Smart inpainting for watermark areas"
+    },
+    "edit": {
+      "title": "Basic Editor",
+      "desc": "Crop, resize, compress, convert"
+    },
+    "aiCutout": {
+      "title": "AI Cutout",
+      "desc": "High-accuracy subject extraction"
+    }
+  },
+  "uploader": {
+    "title": "Drop an image here",
+    "or": "or",
+    "browse": "Browse files",
+    "hint": "PNG, JPG, WebP up to 10MB",
+    "invalidType": "Unsupported file type",
+    "tooLarge": "File exceeds 10MB"
+  },
+  "common": {
+    "download": "Download",
+    "reset": "Start over",
+    "process": "Process",
+    "processing": "Processing…",
+    "error": "Something went wrong",
+    "tryAgain": "Try again",
+    "uploadFirst": "Please upload an image first",
+    "result": "Result",
+    "before": "Original",
+    "after": "Result",
+    "or": "or",
+    "format": "Format",
+    "quality": "Quality",
+    "color": "Color"
+  },
+  "bgColor": {
+    "presets": "Preset colors",
+    "red": "Red",
+    "blue": "Blue",
+    "white": "White",
+    "transparent": "Transparent",
+    "custom": "Custom",
+    "tolerance": "Tolerance",
+    "edgeHint": "Choosing a color close to the actual background gives better results"
+  },
+  "watermark": {
+    "instruction": "Drag on the image to select the watermark area",
+    "clear": "Clear selection",
+    "method": "Inpaint method",
+    "blur": "Blur",
+    "fill": "Fill",
+    "inpaint": "Smart inpaint"
+  },
+  "edit": {
+    "crop": "Crop",
+    "resize": "Resize",
+    "rotate": "Rotate",
+    "flipH": "Flip H",
+    "flipV": "Flip V",
+    "compress": "Compress",
+    "convert": "Convert",
+    "width": "Width",
+    "height": "Height",
+    "keepRatio": "Keep aspect"
+  },
+  "aiCutout": {
+    "apiKeyMissing": "Please configure your remove.bg API key (contact the site owner)",
+    "processing": "Uploading to AI service…",
+    "result": "Generated transparent cutout. You can apply a new background."
+  },
+  "footer": {
+    "copyright": "© 2026 PicEdit. All rights reserved.",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service",
+    "contact": "Contact"
+  },
+  "ad": {
+    "placeholder": "Ad slot (will be replaced with real ads after AdSense approval)"
+  }
+}

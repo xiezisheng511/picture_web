@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Free online photo editor - change background color, remove watermark, AI cutout. All processing happens in your browser, files never leave your device." />
+    <meta name="keywords" content="photo editor, background remover, watermark remover, AI cutout, free image tools" />
+    <meta name="robots" content="index, follow" />
+    <meta property="og:title" content="PicEdit - Free Browser-based Photo Editor" />
+    <meta property="og:description" content="Change background, remove watermark, AI cutout - 100% free, no upload required." />
+    <link rel="preconnect" href="https://esm.sh" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: { 50:'#EEF2FF',100:'#E0E7FF',500:'#6366F1',600:'#4F46E5',700:'#4338CA' },
+              accent:  { 500:'#10B981',600:'#059669' },
+            },
+            fontFamily: { sans:['Inter','PingFang SC','Microsoft YaHei','system-ui','sans-serif'] },
+          },
+        },
+      };
+    </script>
+    <title>PicEdit - Free Browser-based Photo Editor</title>
+    <style>
+      :root { color-scheme: light; }
+      html,body { margin:0; padding:0; font-family:Inter,'PingFang SC','Microsoft YaHei',system-ui,sans-serif; background:#fff; color:#111827; -webkit-font-smoothing:antialiased; }
+      #root { min-height:100vh; display:flex; flex-direction:column; }
+      html { scroll-behavior:smooth; }
+      *:focus-visible { outline:2px solid #6366f1; outline-offset:2px; }
+      .bg-checkerboard {
+        background-image:
+          linear-gradient(45deg,#e5e7eb 25%,transparent 25%),
+          linear-gradient(-45deg,#e5e7eb 25%,transparent 25%),
+          linear-gradient(45deg,transparent 75%,#e5e7eb 75%),
+          linear-gradient(-45deg,transparent 75%,#e5e7eb 75%);
+        background-size:20px 20px;
+        background-position:0 0,0 10px,10px -10px,-10px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root">Loading…</div>
+    <script type="module" src="/assets/app.js"></script>
+  </body>
+</html>

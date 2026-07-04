@@ -1,5 +1,5 @@
 /* PicEdit - zero-build static bundle
- * Loads React 18 from esm.sh, renders the SPA via hash routing.
+ * Loads React 18 from cdn.jsdelivr.net via importmap.
  * No bundler, no npm install required. Drop this folder on any static host.
  */
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';

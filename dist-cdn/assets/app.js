@@ -860,23 +860,23 @@ function RemoveWatermark() {
 
   async function process() {
     if (!src || !sel) return;
-    setBusy(true); setErr(null); setStatus('加载中…'); setProgress(0);
+    setBusy(true); setErr(null); setStatus('正在准备…'); setProgress(0);
     try {
       // If first time, download LaMa model (~200 MB) with progress
       if (!window.__lamaReady) {
-        setStatus('首次使用：下载 AI 模型 (~200MB)…');
+        setStatus('正在准备…');
         const modelUrl = 'https://xiezisheng511.github.io/picture_web/models/lama_512_int8.onnx';
         const modelBlob = await fetchWithProgress(modelUrl, setProgress);
         const modelUrl2 = URL.createObjectURL(modelBlob);
-        setStatus('加载 ONNX Runtime…');
+        setStatus('正在准备…');
         if (!window.ort) {
           await loadScript('https://cdn.bootcdn.net/ajax/libs/onnxruntime-web/1.23.0/ort.min.js');
         }
         window.ort.env.wasm.wasmPaths = 'https://cdn.bootcdn.net/ajax/libs/onnxruntime-web/1.23.0/';
-        setStatus('初始化模型…');
+        setStatus('正在准备…');
         window.__lamaModelUrl = modelUrl2;
       }
-      setStatus('AI 推理中…');
+      setStatus('处理中…');
       const blob = await lib.removeWatermark(src.canvas, sel, method);
       if (result) URL.revokeObjectURL(result);
       setResult(URL.createObjectURL(blob));

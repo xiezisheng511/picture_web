@@ -1,0 +1,111 @@
+{
+  "site": {
+    "name": "PicEdit",
+    "tagline": "免費的瀏覽器圖片處理工具",
+    "taglineEn": "Free browser-based photo editor"
+  },
+  "nav": {
+    "home": "首頁",
+    "tools": "工具",
+    "about": "關於",
+    "language": "語言"
+  },
+  "home": {
+    "heroTitle": "簡單、快速、隱私友好的圖片處理",
+    "heroSubtitle": "無需登入，檔案不上傳伺服器，所有處理在瀏覽器完成",
+    "ctaPrimary": "開始使用",
+    "ctaSecondary": "了解更多",
+    "featuresTitle": "功能特色",
+    "toolsTitle": "選擇工具",
+    "trustBadge": "🔒 檔案不上傳伺服器",
+    "adNote": "廣告位",
+    "seoTitle": "為什麼選擇 PicEdit？",
+    "seoContent": "PicEdit 是一款完全免費的線上圖片處理工具，提供換底色、去浮水印、AI 摳圖等常用功能。所有處理都在你的瀏覽器本地完成，檔案永遠不會上傳到伺服器，保護你的隱私。無論是證件照、社群媒體配圖，還是電商商品圖，PicEdit 都能幫你快速完成。"
+  },
+  "tools": {
+    "bgColor": {
+      "title": "換背景顏色",
+      "desc": "一鍵更換證件照、商品圖底色"
+    },
+    "removeWatermark": {
+      "title": "去浮水印",
+      "desc": "智慧修復圖片浮水印區域"
+    },
+    "edit": {
+      "title": "基礎編輯",
+      "desc": "裁剪、縮放、壓縮、格式轉換"
+    },
+    "aiCutout": {
+      "title": "AI 一鍵摳圖",
+      "desc": "高精度人像/物品摳圖"
+    }
+  },
+  "uploader": {
+    "title": "拖曳圖片到此处",
+    "or": "或",
+    "browse": "選擇檔案",
+    "hint": "支援 PNG、JPG、WebP，最大 10MB",
+    "invalidType": "不支援的檔案格式",
+    "tooLarge": "檔案超過 10MB"
+  },
+  "common": {
+    "download": "下載",
+    "reset": "重新開始",
+    "process": "處理",
+    "processing": "處理中…",
+    "error": "處理失敗",
+    "tryAgain": "重試",
+    "uploadFirst": "請先上傳圖片",
+    "result": "處理結果",
+    "before": "原圖",
+    "after": "效果",
+    "or": "或",
+    "format": "格式",
+    "quality": "品質",
+    "color": "顏色"
+  },
+  "bgColor": {
+    "presets": "預設顏色",
+    "red": "紅色",
+    "blue": "藍色",
+    "white": "白色",
+    "transparent": "透明",
+    "custom": "自訂",
+    "tolerance": "容差",
+    "edgeHint": "選擇接近背景顏色的預設可獲得更好效果"
+  },
+  "watermark": {
+    "instruction": "在圖片上拖曳鼠標準選浮水印區域",
+    "clear": "清除選區",
+    "method": "修復方式",
+    "blur": "模糊",
+    "fill": "填充",
+    "inpaint": "智慧修復"
+  },
+  "edit": {
+    "crop": "裁剪",
+    "resize": "縮放",
+    "rotate": "旋轉",
+    "flipH": "水平翻轉",
+    "flipV": "垂直翻轉",
+    "compress": "壓縮",
+    "convert": "格式轉換",
+    "width": "寬度",
+    "height": "高度",
+    "keepRatio": "保持比例"
+  },
+  "aiCutout": {
+    "apiKeyMissing": "請設定 remove.bg API Key（聯絡站長取得）",
+    "processing": "正在上傳到 AI 服務…",
+    "result": "已產生透明背景圖，可疊加新底色"
+  },
+  "footer": {
+    "copyright": "© 2026 PicEdit. 保留所有權利。",
+    "privacy": "隱私權政策",
+    "terms": "服務條款",
+    "contact": "聯絡我們"
+  },
+  "ad": {
+    "placeholder": "廣告位（通過 AdSense 審核後將替換為真實廣告）"
+  }
+}

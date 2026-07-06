@@ -23,8 +23,27 @@ async function loadDict(lang) {
 
 function detectInitialLang() {
   const saved = localStorage.getItem(STORAGE_KEY);
-  if (saved === 'zh' || saved === 'en') return saved;
-  return (navigator.language || 'en').toLowerCase().startsWith('zh') ? 'zh' : 'en';
+  // Check if user has explicitly saved a language
+  const validLangs = ['zh', 'en', 'tw', 'ja', 'de'];
+  if (validLangs.includes(saved)) return saved;
+  
+  // Auto-detect based on browser language
+  const lang = (navigator.language || 'en').toLowerCase();
+  
+  // Traditional Chinese (Hong Kong, Taiwan, Macau)
+  if (lang.startsWith('zh-hant') || lang === 'zh-tw' || lang === 'zh-hk' || lang === 'zh-mo') {
+    return 'tw';
+  }
+  // Simplified Chinese (Mainland China)
+  if (lang.startsWith('zh') || lang === 'zh-cn' || lang === 'zh-sg') {
+    return 'zh';
+  }
+  // Japanese
+  if (lang.startsWith('ja')) return 'ja';
+  // German
+  if (lang.startsWith('de')) return 'de';
+  // Default to English
+  return 'en';
 }
 
 const I18nContext = React.createContext({ lang: 'en', t: (k) => k, setLang: () => {} });
@@ -649,7 +668,10 @@ function Header() {
           </nav>
           <select aria-label=${t('nav.language')} value=${lang} onChange=${(e) => setLang(e.target.value)}
             className="text-sm border border-gray-200 rounded-md px-2 py-1 bg-white hover:border-primary-500">
-            <option value="zh">中文</option>
+            <option value="zh">简体中文</option>
+            <option value="tw">繁體中文</option>
+            <option value="ja">日本語</option>
+            <option value="de">Deutsch</option>
             <option value="en">English</option>
           </select>
         </div>

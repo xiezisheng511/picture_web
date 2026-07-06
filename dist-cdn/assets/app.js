@@ -913,6 +913,33 @@ function BgColor() {
     `;
 }
 
+// CDN auto-selection for fastest loading
+const CDN_CANDIDATES = [
+  'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.23.0/',
+  'https://cdn.bootcdn.net/ajax/libs/onnxruntime-web/1.23.0/',
+  'https://unpkg.com/onnxruntime-web@1.23.0/',
+];
+let selectedCDN = null;
+
+async function getFastestCDN() {
+  if (selectedCDN) return selectedCDN;
+  const results = [];
+  for (const url of CDN_CANDIDATES) {
+    try {
+      const start = performance.now();
+      await fetch(url + 'ort.wasm.min.js', { method: 'HEAD', mode: 'no-cors' });
+      results.push({ url, time: performance.now() - start });
+    } catch {}
+  }
+  if (results.length > 0) {
+    results.sort((a, b) => a.time - b.time);
+    selectedCDN = results[0].url;
+  } else {
+    selectedCDN = CDN_CANDIDATES[0];
+  }
+  return selectedCDN;
+}
+
 function RemoveWatermark() {
   const { t } = useT();
   const [src, setSrc] = useState(null);
@@ -934,8 +961,8 @@ function RemoveWatermark() {
     const sx = imgRef.current.naturalWidth / r.width;
     const sy = imgRef.current.naturalHeight / r.height;
     start.current = { x: (e.clientX - r.left) * sx, y: (e.clientY - r.top) * sy };
-    setDrag(null);
   };
+
   const onMove = (e) => {
     if (!start.current || !imgRef.current) return;
     const r = imgRef.current.getBoundingClientRect();
@@ -949,28 +976,33 @@ function RemoveWatermark() {
       height: Math.abs(cur.y - start.current.y),
     });
   };
+
   const onUp = () => {
     if (drag && drag.width > 4 && drag.height > 4) {
       setSels((prev) => [...prev, drag]);
     }
     start.current = null;
+    setDrag(null);
   };
+
+  const removeSel = (idx) => setSels((prev) => prev.filter((_, i) => i !== idx));
 
   async function process() {
     if (!src || sels.length === 0) return;
     setBusy(true);
     setErr(null);
-    setStatus("正在准备…");
+    setStatus("准备中…");
     setProgress(0);
     try {
-      if (!window.__lamaReady) {
+      if (method === "ai" && !window.__lamaReady) {
+        const cdnBase = await getFastestCDN();
         const modelUrl = "https://xiezisheng511.github.io/picture_web/models/lama_512_int8.onnx";
         const modelBlob = await fetchWithProgress(modelUrl, setProgress);
         const blobUrl = URL.createObjectURL(modelBlob);
         if (!window.ort) {
-          await loadScript("https://cdn.bootcdn.net/ajax/libs/onnxruntime-web/1.23.0/ort.min.js");
+          await loadScript(cdnBase + "ort.min.js");
         }
-        window.ort.env.wasm.wasmPaths = "https://cdn.bootcdn.net/ajax/libs/onnxruntime-web/1.23.0/";
+        window.ort.env.wasm.wasmPaths = cdnBase;
         window.__lamaModelUrl = blobUrl;
         window.__lamaReady = true;
       }
@@ -986,11 +1018,20 @@ function RemoveWatermark() {
       setBusy(false);
     }
   }
+
   async function download() {
     if (!src || sels.length === 0) return;
     const blob = await lib.removeWatermark(src.canvas, sels, method);
     lib.downloadBlob(blob, "picedit-clean-" + Date.now() + ".png");
   }
+
+  const getDisplayRects = () => {
+    if (!imgRef.current || !src) return [];
+    const r = imgRef.current.getBoundingClientRect();
+    const sx = r.width / imgRef.current.naturalWidth;
+    const sy = r.height / imgRef.current.naturalHeight;
+    return sels.map((s, i) => ({ ...s, sx, sy, i }));
+  };
 
   return html`<div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
     <header className="mb-6">
@@ -1001,7 +1042,10 @@ function RemoveWatermark() {
     ${!src
       ? html`<${ImageUploader} onLoad=${(img, canvas) => setSrc({ img, canvas })} />`
       : html`<div className="space-y-6">
-          <p className="text-sm text-gray-600">${t("watermark.instruction")}</p>
+          <div className="bg-blue-50 rounded-lg p-4 text-sm text-blue-700">
+            💡 ${t("watermark.instruction")}
+            ${sels.length > 0 && html`<span className="ml-2 bg-blue-200 px-2 py-0.5 rounded-full">${sels.length} 个区域已选中</span>`}
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <p className="text-sm font-medium text-gray-700 mb-2">${t("common.before")}</p>
@@ -1013,38 +1057,36 @@ function RemoveWatermark() {
                 onMouseLeave=${onUp}
                 onDragStart=${(e) => e.preventDefault()}
               >
-                <img
-                  ref=${imgRef}
-                  src=${src.img.dataUrl}
-                  alt=""
-                  draggable=${false}
-                  className="block max-w-full max-h-96 pointer-events-none"
-                />
+                <img ref=${imgRef} src=${src.img.dataUrl} alt="" draggable=${false} className="block max-w-full max-h-96 pointer-events-none" />
                 ${(drag || sels.length > 0) && imgRef.current
                   ? (() => {
                       const r = imgRef.current.getBoundingClientRect();
                       const sx = r.width / imgRef.current.naturalWidth;
                       const sy = r.height / imgRef.current.naturalHeight;
                       const all = drag ? [...sels, drag] : sels;
-                      return all.map((R, i) =>
-                        html`<div
-                          key=${i}
-                          className="absolute border-2 border-red-500 bg-red-500/10 pointer-events-none"
-                          style=${{ left: R.x * sx, top: R.y * sy, width: R.width * sx, height: R.height * sy }}
-                        ></div>`
-                      );
+                      return all.map((R, i) => html`<div key=${i} className="absolute border-2 ${i === all.length - 1 && drag ? 'border-blue-500 bg-blue-500/20 border-dashed' : 'border-red-500 bg-red-500/10'} pointer-events-none" style=${{ left: R.x * sx, top: R.y * sy, width: R.width * sx, height: R.height * sy }}></div>`);
                     })()
                   : null}
               </div>
+              ${sels.length > 0 && html`<div className="mt-3 space-y-2">
+                <p className="text-xs text-gray-500 font-medium">已选区域：</p>
+                <div className="flex flex-wrap gap-2">
+                  ${sels.map((s, i) => html`<div key=${i} className="bg-red-50 border border-red-200 px-3 py-1 rounded-full text-xs flex items-center gap-2">
+                    <span className="text-red-600">#${i + 1}</span>
+                    <span className="text-gray-600">${Math.round(s.width)}×${Math.round(s.height)}</span>
+                    <button onClick=${() => removeSel(i)} className="text-red-400 hover:text-red-600 ml-1">×</button>
+                  </div>`)}
+                </div>
+              </div>`}
             </div>
             <div>
               <p className="text-sm font-medium text-gray-700 mb-2">${t("common.after")}</p>
               ${result
                 ? html`<${Preview} src=${result} />`
-                : html`<div className="rounded-lg border border-dashed border-gray-300 h-64 flex items-center justify-center">
+                : html`<div className="rounded-lg border border-dashed border-gray-300 h-64 flex items-center justify-center text-gray-400 text-sm">
                     ${busy
-                      ? html`<${Spinner} label=${status || t("common.processing")} progress=${progress} />`
-                      : html`<span className="text-gray-400 text-sm">${t("common.process") + " →"}</span>`}
+                      ? html`<div className="text-center"><div className="animate-spin text-2xl mb-2">⏳</div><span>${status}</span>${progress > 0 && html`<span> (${progress}%)</span>`}</div>`
+                      : html`<span>${t("common.process")} →</span>`}
                   </div>`}
             </div>
           </div>
@@ -1052,18 +1094,9 @@ function RemoveWatermark() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">${t("watermark.method")}</label>
               <div className="flex gap-2">
-                <button
-                  onClick=${() => setMethod("blur")}
-                  className=${`px-3 py-1.5 rounded-md text-sm ${method === "blur" ? "bg-primary-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
-                >${t("watermark.blur")}</button>
-                <button
-                  onClick=${() => setMethod("fill")}
-                  className=${`px-3 py-1.5 rounded-md text-sm ${method === "fill" ? "bg-primary-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
-                >${t("watermark.fill")}</button>
-                <button
-                  onClick=${() => setMethod("ai")}
-                  className=${`px-3 py-1.5 rounded-md text-sm flex items-center gap-1 ${method === "ai" ? "bg-primary-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
-                ><span>✨</span>${t("watermark.ai")}</button>
+                <button onClick=${() => setMethod("blur")} className=${`px-3 py-1.5 rounded-md text-sm ${method === "blur" ? "bg-primary-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}>🔲 ${t("watermark.blur")}</button>
+                <button onClick=${() => setMethod("fill")} className=${`px-3 py-1.5 rounded-md text-sm ${method === "fill" ? "bg-primary-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}>🎨 ${t("watermark.fill")}</button>
+                <button onClick=${() => setMethod("ai")} className=${`px-3 py-1.5 rounded-md text-sm flex items-center gap-1 ${method === "ai" ? "bg-primary-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}><span>✨</span>${t("watermark.ai")}</button>
               </div>
             </div>
             <div className="flex items-center gap-3 flex-wrap">
@@ -1077,6 +1110,7 @@ function RemoveWatermark() {
         </div>`}
   </div>`;
 }
+
 
 
 function Edit() {

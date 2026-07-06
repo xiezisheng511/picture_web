@@ -22,10 +22,22 @@
     "seoContent": "PicEdit is a completely free online photo editor that provides background color changes, watermark removal, AI cutouts, and other common features. All processing happens locally in your browser - files are never uploaded to any server, protecting your privacy. Whether you need ID photos, social media graphics, or e-commerce product shots, PicEdit helps you get it done quickly."
   },
   "tools": {
-    "bgColor": { "title": "Change Background", "desc": "Swap photo background in one click" },
-    "removeWatermark": { "title": "Remove Watermark", "desc": "Smart inpainting for watermark areas" },
-    "edit": { "title": "Basic Editor", "desc": "Crop, resize, compress, convert" },
-    "aiCutout": { "title": "AI Cutout", "desc": "High-accuracy subject extraction" }
+    "bgColor": {
+      "title": "Change Background",
+      "desc": "Swap photo background in one click"
+    },
+    "removeWatermark": {
+      "title": "Remove Watermark",
+      "desc": "Smart inpainting for watermark areas"
+    },
+    "edit": {
+      "title": "Basic Editor",
+      "desc": "Crop, resize, compress, convert"
+    },
+    "aiCutout": {
+      "title": "AI Cutout",
+      "desc": "High-accuracy subject extraction"
+    }
   },
   "uploader": {
     "title": "Drop an image here",
@@ -51,7 +63,9 @@
   },
   "bgColor": {
     "presets": "Preset colors",
-    "red": "Red", "blue": "Blue", "white": "White",
+    "red": "Red",
+    "blue": "Blue",
+    "white": "White",
     "transparent": "Transparent",
     "custom": "Custom",
     "tolerance": "Tolerance",
@@ -61,13 +75,22 @@
     "instruction": "Drag on the image to select the watermark area",
     "clear": "Clear selection",
     "method": "Inpaint method",
-    "blur": "Blur", "fill": "Fill", "inpaint": "Smart inpaint"
+    "blur": "Blur",
+    "fill": "Fill",
+    "inpaint": "Smart inpaint",
+    "ai": "AI Inpaint"
   },
   "edit": {
-    "crop": "Crop","resize": "Resize","rotate": "Rotate",
-    "flipH": "Flip H","flipV": "Flip V",
-    "compress": "Compress","convert": "Convert",
-    "width": "Width","height": "Height","keepRatio": "Keep aspect"
+    "crop": "Crop",
+    "resize": "Resize",
+    "rotate": "Rotate",
+    "flipH": "Flip H",
+    "flipV": "Flip V",
+    "compress": "Compress",
+    "convert": "Convert",
+    "width": "Width",
+    "height": "Height",
+    "keepRatio": "Keep aspect"
   },
   "aiCutout": {
     "apiKeyMissing": "Please configure your remove.bg API key (contact the site owner)",
@@ -79,5 +102,7 @@
     "terms": "Terms of Service",
     "contact": "Contact"
   },
-  "ad": { "placeholder": "Ad slot (will be replaced with real ads after AdSense approval)" }
+  "ad": {
+    "placeholder": "Ad slot (will be replaced with real ads after AdSense approval)"
+  }
 }

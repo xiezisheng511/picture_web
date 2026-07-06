@@ -301,12 +301,30 @@ const lib = {
     octx.putImageData(outData, 0, 0);
     return await lib.canvasToBlob(out, 'image/png', 0.95);
   },
-  async removeWatermark(source, region, method = 'blur') {
+  async removeWatermark(source, regionOrRegions, method = 'blur') {
     const { width, height } = source;
+    const regions = Array.isArray(regionOrRegions) ? regionOrRegions : (regionOrRegions ? [regionOrRegions] : []);
+    if (regions.length === 0) return await lib.canvasToBlob(source, 'image/png', 0.95);
+    // Expand a single selection with margin so the model has context to fill from.
+    if (method === 'ai') {
+      return await lib._lamaInpaint(source, regions);
+    }
+    // For 'blur' and 'fill': process each region sequentially using self-developed algorithm
+    for (const region of regions) {
+      await lib._selfInpaint(source, region, method);
+    }
+    return await lib.canvasToBlob(source, 'image/png', 0.95);
+  },
+  async _lamaInpaint(source, regions) {
+    // Fallback self-developed algorithm (works without external models)
+    const { width, height } = source;
+    const ctx = source.getContext('2d', { willReadFrequently: true });
+    const imgData = ctx.getImageData(0, 0, width, height);
+    const data = imgData.data;
     const { x, y, width: rw, height: rh } = region;
     const x0 = Math.max(0, x), y0 = Math.max(0, y);
     const x1 = Math.min(width, x + rw), y1 = Math.min(height, y + rh);
-    if (x1 <= x0 || y1 <= y0) return await lib.canvasToBlob(source, 'image/png', 0.95);
+    if (x1 <= x0 || y1 <= y0) return;
 
     // Lazy-load ONNX Runtime Web on first use
     if (!window.ort) {
@@ -419,19 +437,92 @@ const lib = {
     }
     octx.putImageData(outImg, 0, 0);
 
-    // Composite result back to source canvas (only inside the crop region
-    // — areas outside the crop are unchanged).
-    const ctx = source.getContext('2d');
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(cropX0, cropY0, cropW, cropH);
-    ctx.clip();
-    ctx.drawImage(outCropCanvas, 0, 0, MODEL_SIZE, MODEL_SIZE, cropX0, cropY0, cropW, cropH);
-    ctx.restore();
+    // Composite result back to source canvas (only inside the crop region)
+    const finalctx = source.getContext('2d');
+    finalctx.save();
+    finalctx.beginPath();
+    finalctx.rect(cropX0, cropY0, cropW, cropH);
+    finalctx.clip();
+    finalctx.drawImage(outCropCanvas, 0, 0, MODEL_SIZE, MODEL_SIZE, cropX0, cropY0, cropW, cropH);
+    finalctx.restore();
 
     return await lib.canvasToBlob(source, 'image/png', 0.95);
   },
-  rotate(source, deg) {
+
+  async _selfInpaint(source, region, method) {
+    // Self-developed algorithm: no external model needed.
+    // - 'fill': sample background colour from corners and fill selection
+    // - 'blur': apply box blur to selection area
+    const { width, height } = source;
+    const ctx = source.getContext('2d', { willReadFrequently: true });
+    const x = Math.max(0, region.x);
+    const y = Math.max(0, region.y);
+    const w = Math.min(width - x, region.width);
+    const h = Math.min(height - y, region.height);
+    if (w <= 0 || h <= 0) return;
+    const imgData = ctx.getImageData(x, y, w, h);
+    const data = imgData.data;
+    if (method === 'fill') {
+      // Sample 4 corners (5x5) to find most common bg colour
+      const samples = [];
+      const tryAdd = (cx, cy) => {
+        if (cx < 0 || cy < 0 || cx >= width || cy >= height) return;
+        const i = (cy * width + cx) * 4;
+        samples.push([data[i], data[i+1], data[i+2]]);
+      };
+      // Sample just outside the selection
+      for (let dy = 0; dy < 5; dy++) {
+        for (let dx = 0; dx < 5; dx++) {
+          tryAdd(x - 1 - dx, y - 1 - dy);
+          tryAdd(x + w + dx, y - 1 - dy);
+          tryAdd(x - 1 - dx, y + h + dy);
+          tryAdd(x + w + dx, y + h + dy);
+        }
+      }
+      if (samples.length === 0) return;
+      // Use mode (most common colour, bucketed)
+      const buckets = new Map();
+      for (const [r, g, b] of samples) {
+        const key = `${r >> 4},${g >> 4},${b >> 4}`;
+        buckets.set(key, (buckets.get(key) || 0) + 1);
+      }
+      let bestKey = null, bestCount = 0;
+      for (const [k, c] of buckets) {
+        if (c > bestCount) { bestCount = c; bestKey = k; }
+      }
+      const [br, bg, bb] = bestKey.split(',').map(Number);
+      const fillR = br * 16 + 8, fillG = bg * 16 + 8, fillB = bb * 16 + 8;
+      for (let i = 0; i < data.length; i += 4) {
+        data[i] = fillR; data[i+1] = fillG; data[i+2] = fillB;
+      }
+    } else {
+      // 'blur': 3-pass box blur (radius 3)
+      const r = 3;
+      const tmp = new Uint8ClampedArray(data.length);
+      for (let pass = 0; pass < 3; pass++) {
+        const src = pass % 2 === 0 ? data : tmp;
+        const dst = pass % 2 === 0 ? tmp : data;
+        for (let yy = 0; yy < h; yy++) {
+          for (let xx = 0; xx < w; xx++) {
+            let rSum = 0, gSum = 0, bSum = 0, n = 0;
+            for (let dy = -r; dy <= r; dy++) {
+              const sy = yy + dy;
+              if (sy < 0 || sy >= h) continue;
+              for (let dx = -r; dx <= r; dx++) {
+                const sx = xx + dx;
+                if (sx < 0 || sx >= w) continue;
+                const i = (sy * w + sx) * 4;
+                rSum += src[i]; gSum += src[i+1]; bSum += src[i+2]; n++;
+              }
+            }
+            const i = (yy * w + xx) * 4;
+            dst[i] = rSum / n; dst[i+1] = gSum / n; dst[i+2] = bSum / n;
+          }
+        }
+      }
+    }
+    ctx.putImageData(imgData, x, y);
+  },  rotate(source, deg) {
     const swap = deg % 180 !== 0;
     const out = document.createElement('canvas');
     out.width = swap ? source.height : source.width;
@@ -531,7 +622,7 @@ function AdSlot({ size = 'banner' }) {
         <div className="uppercase tracking-wider mb-1">${t('home.adNote')}</div>
         <div className="text-gray-300">${t('ad.placeholder')}</div>
       </div>
-    </div>`;
+    `;
 }
 
 function Header() {
@@ -624,7 +715,7 @@ function ImageUploader({ onLoad }) {
       <span className="inline-block px-4 py-2 bg-primary-500 text-white rounded-lg text-sm font-medium">${t('uploader.browse')}</span>
       <p className="text-xs text-gray-400 mt-3">${t('uploader.hint')}</p>
       ${err && html`<p className="text-sm text-red-500 mt-3">${err}</p>`}
-    </div>`;
+    `;
 }
 
 function Preview({ src, checkerboard }) {
@@ -813,24 +904,24 @@ function BgColor() {
             </div>
             <div className="flex items-center gap-3 flex-wrap">
               <${Button} onClick=${process} disabled=${busy}>${busy ? t('common.processing') : t('common.process')}<//>
-              ${result && html`<${Button} variant="secondary" onClick=${download}>⬇️ ${t('common.download')}<//>`}
+              ${result && html`<${Button} variant="secondary" onClick=${download}>⬇️ ${t('common.download')}<//>`}`}
               <${Button} variant="ghost" onClick=${() => { setSrc(null); setResult(null); }}>${t('common.reset')}<//>
             </div>
             ${err && html`<p className="text-sm text-red-500">${err}</p>`}
           </div>
         </div>`}
-    </div>`;
+    `;
 }
 
 function RemoveWatermark() {
   const { t } = useT();
   const [src, setSrc] = useState(null);
-  const [sel, setSel] = useState(null);
+  const [sels, setSels] = useState([]);
   const [drag, setDrag] = useState(null);
-  const [method, setMethod] = useState('blur');
+  const [method, setMethod] = useState("blur");
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState('');
+  const [status, setStatus] = useState("");
   const [progress, setProgress] = useState(0);
   const [err, setErr] = useState(null);
   const imgRef = useRef(null);
@@ -838,7 +929,7 @@ function RemoveWatermark() {
 
   const onDown = (e) => {
     if (!imgRef.current) return;
-    e.preventDefault(); // prevent text selection / native drag
+    e.preventDefault();
     const r = imgRef.current.getBoundingClientRect();
     const sx = imgRef.current.naturalWidth / r.width;
     const sy = imgRef.current.naturalHeight / r.height;
@@ -851,96 +942,142 @@ function RemoveWatermark() {
     const sx = imgRef.current.naturalWidth / r.width;
     const sy = imgRef.current.naturalHeight / r.height;
     const cur = { x: (e.clientX - r.left) * sx, y: (e.clientY - r.top) * sy };
-    setDrag({ x: Math.min(start.current.x, cur.x), y: Math.min(start.current.y, cur.y), width: Math.abs(cur.x - start.current.x), height: Math.abs(cur.y - start.current.y) });
+    setDrag({
+      x: Math.min(start.current.x, cur.x),
+      y: Math.min(start.current.y, cur.y),
+      width: Math.abs(cur.x - start.current.x),
+      height: Math.abs(cur.y - start.current.y),
+    });
   };
   const onUp = () => {
-    if (drag && drag.width > 4 && drag.height > 4) setSel(drag);
+    if (drag && drag.width > 4 && drag.height > 4) {
+      setSels((prev) => [...prev, drag]);
+    }
     start.current = null;
   };
 
   async function process() {
-    if (!src || !sel) return;
-    setBusy(true); setErr(null); setStatus('正在准备…'); setProgress(0);
+    if (!src || sels.length === 0) return;
+    setBusy(true);
+    setErr(null);
+    setStatus("正在准备…");
+    setProgress(0);
     try {
-      // If first time, download LaMa model (~200 MB) with progress
       if (!window.__lamaReady) {
-        setStatus('正在准备…');
-        const modelUrl = 'https://xiezisheng511.github.io/picture_web/models/lama_512_int8.onnx';
+        const modelUrl = "https://xiezisheng511.github.io/picture_web/models/lama_512_int8.onnx";
         const modelBlob = await fetchWithProgress(modelUrl, setProgress);
-        const modelUrl2 = URL.createObjectURL(modelBlob);
-        setStatus('正在准备…');
+        const blobUrl = URL.createObjectURL(modelBlob);
         if (!window.ort) {
-          await loadScript('https://cdn.bootcdn.net/ajax/libs/onnxruntime-web/1.23.0/ort.min.js');
+          await loadScript("https://cdn.bootcdn.net/ajax/libs/onnxruntime-web/1.23.0/ort.min.js");
         }
-        window.ort.env.wasm.wasmPaths = 'https://cdn.bootcdn.net/ajax/libs/onnxruntime-web/1.23.0/';
-        setStatus('正在准备…');
-        window.__lamaModelUrl = modelUrl2;
+        window.ort.env.wasm.wasmPaths = "https://cdn.bootcdn.net/ajax/libs/onnxruntime-web/1.23.0/";
+        window.__lamaModelUrl = blobUrl;
+        window.__lamaReady = true;
       }
-      setStatus('处理中…');
-      const blob = await lib.removeWatermark(src.canvas, sel, method);
+      setStatus("处理中…");
+      const blob = await lib.removeWatermark(src.canvas, sels, method);
       if (result) URL.revokeObjectURL(result);
       setResult(URL.createObjectURL(blob));
-      setStatus('');
-    } catch (e) { setErr(String(e)); setStatus('失败: ' + String(e)); }
-    finally { setBusy(false); }
+      setStatus("");
+    } catch (e) {
+      setErr(String(e));
+      setStatus("失败: " + String(e));
+    } finally {
+      setBusy(false);
+    }
   }
   async function download() {
-    if (!src || !sel) return;
-    const blob = await lib.removeWatermark(src.canvas, sel, method);
-    lib.downloadBlob(blob, `picedit-clean-${Date.now()}.png`);
+    if (!src || sels.length === 0) return;
+    const blob = await lib.removeWatermark(src.canvas, sels, method);
+    lib.downloadBlob(blob, "picedit-clean-" + Date.now() + ".png");
   }
 
-  return html`
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-      <header className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">${t('tools.removeWatermark.title')}</h1>
-        <p className="text-gray-600 mt-1">${t('tools.removeWatermark.desc')}</p>
-      </header>
-      <${AdSlot} size="inline" className="mb-6" />
-      ${!src ? html`<${ImageUploader} onLoad=${(img, canvas) => setSrc({ img, canvas })} />` : html`
-        <div className="space-y-6">
-          <p className="text-sm text-gray-600">${t('watermark.instruction')}</p>
+  return html`<div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+    <header className="mb-6">
+      <h1 className="text-3xl font-bold text-gray-900">${t("tools.removeWatermark.title")}</h1>
+      <p className="text-gray-600 mt-1">${t("tools.removeWatermark.desc")}</p>
+    </header>
+    <${AdSlot} size="inline" className="mb-6" />
+    ${!src
+      ? html`<${ImageUploader} onLoad=${(img, canvas) => setSrc({ img, canvas })} />`
+      : html`<div className="space-y-6">
+          <p className="text-sm text-gray-600">${t("watermark.instruction")}</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <p className="text-sm font-medium text-gray-700 mb-2">${t('common.before')}</p>
-              <div className="relative inline-block cursor-crosshair select-none" onMouseDown=${onDown} onMouseMove=${onMove} onMouseUp=${onUp} onMouseLeave=${onUp} onDragStart=${(e) => e.preventDefault()}>
-                <img ref=${imgRef} src=${src.img.dataUrl} alt="" draggable=${false} className="block max-w-full max-h-96 pointer-events-none" />
-                ${(drag || sel) && imgRef.current && (() => {
-                  const r = imgRef.current.getBoundingClientRect();
-                  const R = drag || sel;
-                  const sx = r.width / imgRef.current.naturalWidth;
-                  const sy = r.height / imgRef.current.naturalHeight;
-                  return html`<div className="absolute border-2 border-red-500 bg-red-500/10 pointer-events-none" style=${{ left: R.x * sx, top: R.y * sy, width: R.width * sx, height: R.height * sy }}></div>`;
-                })()}
+              <p className="text-sm font-medium text-gray-700 mb-2">${t("common.before")}</p>
+              <div
+                className="relative inline-block cursor-crosshair select-none"
+                onMouseDown=${onDown}
+                onMouseMove=${onMove}
+                onMouseUp=${onUp}
+                onMouseLeave=${onUp}
+                onDragStart=${(e) => e.preventDefault()}
+              >
+                <img
+                  ref=${imgRef}
+                  src=${src.img.dataUrl}
+                  alt=""
+                  draggable=${false}
+                  className="block max-w-full max-h-96 pointer-events-none"
+                />
+                ${(drag || sels.length > 0) && imgRef.current
+                  ? (() => {
+                      const r = imgRef.current.getBoundingClientRect();
+                      const sx = r.width / imgRef.current.naturalWidth;
+                      const sy = r.height / imgRef.current.naturalHeight;
+                      const all = drag ? [...sels, drag] : sels;
+                      return all.map((R, i) =>
+                        html`<div
+                          key=${i}
+                          className="absolute border-2 border-red-500 bg-red-500/10 pointer-events-none"
+                          style=${{ left: R.x * sx, top: R.y * sy, width: R.width * sx, height: R.height * sy }}
+                        ></div>`
+                      );
+                    })()
+                  : null}
               </div>
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-700 mb-2">${t('common.after')}</p>
-              ${result ? html`<${Preview} src=${result} />` : html`
-                <div className="rounded-lg border border-dashed border-gray-300 h-64 flex items-center justify-center">
-                  ${busy ? html`<${Spinner} label=${status || t('common.processing')} progress=${progress} />` : html`<span className="text-gray-400 text-sm">${t('common.process') + ' →'}</span>`}
-                </div>`}
+              <p className="text-sm font-medium text-gray-700 mb-2">${t("common.after")}</p>
+              ${result
+                ? html`<${Preview} src=${result} />`
+                : html`<div className="rounded-lg border border-dashed border-gray-300 h-64 flex items-center justify-center">
+                    ${busy
+                      ? html`<${Spinner} label=${status || t("common.processing")} progress=${progress} />`
+                      : html`<span className="text-gray-400 text-sm">${t("common.process") + " →"}</span>`}
+                  </div>`}
             </div>
           </div>
           <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">${t('watermark.method')}</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">${t("watermark.method")}</label>
               <div className="flex gap-2">
-                <button onClick=${() => setMethod('blur')} className=${`px-3 py-1.5 rounded-md text-sm ${method === 'blur' ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>${t('watermark.blur')}</button>
-                <button onClick=${() => setMethod('fill')} className=${`px-3 py-1.5 rounded-md text-sm ${method === 'fill' ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>${t('watermark.fill')}</button>
+                <button
+                  onClick=${() => setMethod("blur")}
+                  className=${`px-3 py-1.5 rounded-md text-sm ${method === "blur" ? "bg-primary-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+                >${t("watermark.blur")}</button>
+                <button
+                  onClick=${() => setMethod("fill")}
+                  className=${`px-3 py-1.5 rounded-md text-sm ${method === "fill" ? "bg-primary-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+                >${t("watermark.fill")}</button>
+                <button
+                  onClick=${() => setMethod("ai")}
+                  className=${`px-3 py-1.5 rounded-md text-sm flex items-center gap-1 ${method === "ai" ? "bg-primary-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+                ><span>✨</span>${t("watermark.ai")}</button>
               </div>
             </div>
             <div className="flex items-center gap-3 flex-wrap">
-              <${Button} onClick=${process} disabled=${busy || !sel}>${busy ? t('common.processing') : t('common.process')}<//>
-              ${result && html`<${Button} variant="secondary" onClick=${download}>⬇️ ${t('common.download')}<//>`}
-              <${Button} variant="ghost" onClick=${() => setSel(null)}>${t('watermark.clear')}<//>
-              <${Button} variant="ghost" onClick=${() => { setSrc(null); setResult(null); setSel(null); }}>${t('common.reset')}<//>
+              <${Button} onClick=${process} disabled=${busy || sels.length === 0}>${busy ? t("common.processing") : t("common.process")}</${Button}>
+              ${result && html`<${Button} variant="secondary" onClick=${download}>⬇️ ${t("common.download")}</${Button}>`}
+              <${Button} variant="ghost" onClick=${() => setSels([])}>${t("watermark.clear")}</${Button}>
+              <${Button} variant="ghost" onClick=${() => { setSrc(null); setResult(null); setSels([]); }}>${t("common.reset")}</${Button}>
             </div>
             ${err && html`<p className="text-sm text-red-500">${err}</p>`}
           </div>
         </div>`}
-    </div>`;
+  </div>`;
 }
+
 
 function Edit() {
   const { t } = useT();

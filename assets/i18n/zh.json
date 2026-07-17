@@ -1,0 +1,108 @@
+{
+  "site": {
+    "name": "PicEdit",
+    "tagline": "免费的浏览器图片处理工具"
+  },
+  "nav": {
+    "home": "首页",
+    "tools": "工具",
+    "about": "关于",
+    "language": "语言"
+  },
+  "home": {
+    "heroTitle": "简单、快速、隐私友好的图片处理",
+    "heroSubtitle": "无需登录，文件不上传服务器，所有处理在浏览器完成",
+    "ctaPrimary": "开始使用",
+    "ctaSecondary": "了解更多",
+    "featuresTitle": "功能特色",
+    "toolsTitle": "选择工具",
+    "trustBadge": "🔒 文件不上传服务器",
+    "adNote": "广告位",
+    "seoTitle": "为什么选择 PicEdit？",
+    "seoContent": "PicEdit 是一款完全免费的在线图片处理工具，提供换底色、去水印、AI 抠图等常用功能。所有处理都在你的浏览器本地完成，文件永远不会上传到服务器，保护你的隐私。无论是证件照、社交媒体配图，还是电商商品图，PicEdit 都能帮你快速完成。"
+  },
+  "tools": {
+    "bgColor": {
+      "title": "换背景颜色",
+      "desc": "一键更换证件照、商品图底色"
+    },
+    "removeWatermark": {
+      "title": "去水印",
+      "desc": "智能修复图片水印区域"
+    },
+    "edit": {
+      "title": "基础编辑",
+      "desc": "裁剪、缩放、压缩、格式转换"
+    },
+    "aiCutout": {
+      "title": "AI 一键抠图",
+      "desc": "高精度人像/物品抠图"
+    }
+  },
+  "uploader": {
+    "title": "拖拽图片到此处",
+    "or": "或",
+    "browse": "选择文件",
+    "hint": "支持 PNG、JPG、WebP，最大 10MB",
+    "invalidType": "不支持的文件格式",
+    "tooLarge": "文件超过 10MB"
+  },
+  "common": {
+    "download": "下载",
+    "reset": "重新开始",
+    "process": "处理",
+    "processing": "处理中…",
+    "error": "处理失败",
+    "tryAgain": "重试",
+    "uploadFirst": "请先上传图片",
+    "result": "处理结果",
+    "before": "原图",
+    "after": "效果",
+    "format": "格式",
+    "quality": "质量"
+  },
+  "bgColor": {
+    "presets": "预设颜色",
+    "red": "红色",
+    "blue": "蓝色",
+    "white": "白色",
+    "transparent": "透明",
+    "custom": "自定义",
+    "tolerance": "容差",
+    "edgeHint": "选择接近背景颜色的预设可获得更好效果"
+  },
+  "watermark": {
+    "instruction": "在图片上拖动鼠标框选水印区域",
+    "clear": "清除选区",
+    "method": "修复方式",
+    "blur": "模糊",
+    "fill": "填充",
+    "inpaint": "智能修复",
+    "ai": "AI 修复"
+  },
+  "edit": {
+    "crop": "裁剪",
+    "resize": "缩放",
+    "rotate": "旋转",
+    "flipH": "水平翻转",
+    "flipV": "垂直翻转",
+    "compress": "压缩",
+    "convert": "格式转换",
+    "width": "宽度",
+    "height": "高度",
+    "keepRatio": "保持比例"
+  },
+  "aiCutout": {
+    "apiKeyMissing": "请配置 remove.bg API Key（联系站长获取）",
+    "processing": "正在上传到 AI 服务…"
+  },
+  "footer": {
+    "copyright": "© 2026 PicEdit. 保留所有权利。",
+    "privacy": "隐私政策",
+    "terms": "服务条款",
+    "contact": "联系我们"
+  },
+  "ad": {
+    "placeholder": "广告位（通过 AdSense 审核后将替换为真实广告）"
+  }
+}

@@ -37,7 +37,6 @@
       };
     </script>
     <title>PicEdit - Free Browser-based Photo Editor</title>
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9686480632598523" crossorigin="anonymous"></script>
     <style>
       :root { color-scheme: light; }
       html,body { margin:0; padding:0; font-family:Inter,'PingFang SC','Microsoft YaHei',system-ui,sans-serif; background:#fff; color:#111827; -webkit-font-smoothing:antialiased; }
@@ -54,6 +53,32 @@
         background-position:0 0,0 10px,10px -10px,-10px 0;
       }
     </style>
+    <!--
+      SPA fallback: when GitHub Pages can't find a path, it returns this
+      404.html. We detect that and redirect the URL's pathname into a
+      hash route so the SPA renders the correct page.
+    -->
+    <script>
+      // Only redirect if this page was loaded as a 404 (not when 404.html
+      // itself is directly visited). We detect by checking if pathname
+      // is one of our app routes.
+      (function () {
+        var path = window.location.pathname;
+        // Strip repo prefix like /picture_web/
+        var prefix = '/picture_web';
+        if (path.indexOf(prefix) === 0) path = path.slice(prefix.length);
+        if (!path || path === '/') return; // already at root, no-op
+        // If we got here via a real 404, the URL would have a path like
+        // /tools/remove-watermark — convert it to a hash route.
+        if (window.location.hash) return; // user has hash already
+        // Only redirect for paths that look like our app routes
+        if (path === '/tools/bg-color' || path === '/tools/remove-watermark' ||
+            path === '/tools/edit' || path === '/tools/ai-cutout' ||
+            path === '/about' || path === '/privacy' || path === '/terms') {
+          window.location.replace(window.location.origin + prefix + '/#' + path);
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root">Loading…</div>

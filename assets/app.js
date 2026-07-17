@@ -2,9 +2,9 @@
  * Loads React 18 from esm.sh, renders the SPA via hash routing.
  * No bundler, no npm install required. Drop this folder on any static host.
  */
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { createRoot } from 'react-dom/client';
-import htm from 'htm';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'https://esm.sh/react@18.3.1';
+import { createRoot } from 'https://esm.sh/react-dom@18.3.1/client';
+import htm from 'https://esm.sh/htm@3.1.1';
 
 const html = htm.bind(React.createElement);
 
@@ -324,12 +324,30 @@ function Link({ to, className, children }) {
 function AdSlot({ size = 'banner' }) {
   const { t } = useT();
   const heights = { banner: 'min-h-[90px]', sidebar: 'min-h-[250px]', inline: 'min-h-[120px]' };
+  useEffect(() => {
+    const t = setTimeout(() => {
+      try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch (e) {}
+    }, 100);
+    return () => clearTimeout(t);
+  }, []);
+  const adStyle = {
+    banner: { display: 'block', width: '728px', height: '90px' },
+    sidebar: { display: 'block', width: '300px', height: '250px' },
+    inline: { display: 'block' },
+  }[size];
+  const adSlotId = {
+    banner: 'BANNER_SLOT_ID',
+    sidebar: 'SIDEBAR_SLOT_ID',
+    inline: 'INLINE_SLOT_ID',
+  }[size];
   return html`
     <div className=${`w-full bg-gray-50 border border-dashed border-gray-200 rounded-md flex items-center justify-center text-xs text-gray-400 ${heights[size]}`}>
-      <div className="text-center px-4">
-        <div className="uppercase tracking-wider mb-1">${t('home.adNote')}</div>
-        <div className="text-gray-300">${t('ad.placeholder')}</div>
-      </div>
+      <ins className="adsbygoogle"
+           style=${adStyle}
+           data-ad-client="ca-pub-9686480632598523"
+           data-ad-slot=${adSlotId}
+           data-ad-format="auto"
+           data-full-width-responsive="true" />
     </div>`;
 }
 

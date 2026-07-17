@@ -1,2 +1,2 @@
 # AdSense seller file - update with your AdSense publisher ID after approval
-google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0
+google.com, pub-9686480632598523, DIRECT, f08c47fec0942fa0

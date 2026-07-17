@@ -641,7 +641,8 @@ function AdSlot({ size = 'banner' }) {
         <div className="uppercase tracking-wider mb-1">${t('home.adNote')}</div>
         <div className="text-gray-300">${t('ad.placeholder')}</div>
       </div>
-    `;
+    </div>
+  `;
 }
 
 function Header() {

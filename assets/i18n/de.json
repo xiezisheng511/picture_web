@@ -1,0 +1,111 @@
+{
+  "site": {
+    "name": "PicEdit",
+    "tagline": "Kostenloser browserbasierter Fotoeditor",
+    "taglineEn": "Free browser-based photo editor"
+  },
+  "nav": {
+    "home": "Startseite",
+    "tools": "Werkzeuge",
+    "about": "Über",
+    "language": "Sprache"
+  },
+  "home": {
+    "heroTitle": "Einfach, schnell und datenschutzfreundlich",
+    "heroSubtitle": "Keine Anmeldung erforderlich. Dateien verlassen nie Ihr Gerät. Alles läuft in Ihrem Browser.",
+    "ctaPrimary": "Loslegen",
+    "ctaSecondary": "Mehr erfahren",
+    "featuresTitle": "Funktionen",
+    "toolsTitle": "Werkzeug wählen",
+    "trustBadge": "🔒 Dateien verlassen nie Ihr Gerät",
+    "adNote": "Werbefläche",
+    "seoTitle": "Warum PicEdit?",
+    "seoContent": "PicEdit ist ein völlig kostenloser Online-Fotoeditor mit Funktionen wie Hintergrundfarben ändern, Wasserzeichen entfernen und KI-Ausschneiden. Alle Verarbeitungen erfolgen lokal in Ihrem Browser - Dateien werden niemals auf einen Server hochgeladen, was Ihre Privatsphäre schützt. Ob Passfotos, Social-Media-Grafiken oder E-Commerce-Produktbilder - PicEdit hilft Ihnen, alles schnell zu erledigen."
+  },
+  "tools": {
+    "bgColor": {
+      "title": "Hintergrundfarbe ändern",
+      "desc": "Hintergrund von Pass- und Produktfotos mit einem Klick ändern"
+    },
+    "removeWatermark": {
+      "title": "Wasserzeichen entfernen",
+      "desc": "Intelligente Retusche für Wasserzeichenbereiche"
+    },
+    "edit": {
+      "title": "Basis-Editor",
+      "desc": "Zuschneiden, Grösse ändern, komprimieren, konvertieren"
+    },
+    "aiCutout": {
+      "title": "KI-Ausschneiden",
+      "desc": "Hochpräzise Motivfreistellung"
+    }
+  },
+  "uploader": {
+    "title": "Bild hierher ziehen",
+    "or": "oder",
+    "browse": "Dateien auswählen",
+    "hint": "PNG, JPG, WebP bis 10MB",
+    "invalidType": "Nicht unterstütztes Dateiformat",
+    "tooLarge": "Datei überschreitet 10MB"
+  },
+  "common": {
+    "download": "Herunterladen",
+    "reset": "Neu starten",
+    "process": "Verarbeiten",
+    "processing": "Verarbeitung…",
+    "error": "Etwas ist schiefgelaufen",
+    "tryAgain": "Erneut versuchen",
+    "uploadFirst": "Bitte laden Sie zuerst ein Bild hoch",
+    "result": "Ergebnis",
+    "before": "Original",
+    "after": "Ergebnis",
+    "or": "oder",
+    "format": "Format",
+    "quality": "Qualität",
+    "color": "Farbe"
+  },
+  "bgColor": {
+    "presets": "Voreingestellte Farben",
+    "red": "Rot",
+    "blue": "Blau",
+    "white": "Weiss",
+    "transparent": "Transparent",
+    "custom": "Benutzerdefiniert",
+    "tolerance": "Toleranz",
+    "edgeHint": "Die Auswahl einer Farbe nahe dem tatsächlichen Hintergrund ergibt bessere Ergebnisse"
+  },
+  "watermark": {
+    "instruction": "Ziehen Sie auf dem Bild, um den Wasserzeichenbereich auszuwählen",
+    "clear": "Auswahl löschen",
+    "method": "Retuschiermethode",
+    "blur": "Weichzeichnen",
+    "fill": "Ausfüllen",
+    "inpaint": "Smart-Retusche"
+  },
+  "edit": {
+    "crop": "Zuschneiden",
+    "resize": "Grösse ändern",
+    "rotate": "Drehen",
+    "flipH": "Horizontal spiegeln",
+    "flipV": "Vertikal spiegeln",
+    "compress": "Komprimieren",
+    "convert": "Konvertieren",
+    "width": "Breite",
+    "height": "Höhe",
+    "keepRatio": "Seitenverhältnis beibehalten"
+  },
+  "aiCutout": {
+    "apiKeyMissing": "Bitte konfigurieren Sie Ihren remove.bg API-Schlüssel (Site-Administrator kontaktieren)",
+    "processing": "Hochladen zum KI-Service…",
+    "result": "Transparenter Ausschnitt erstellt. Sie können einen neuen Hintergrund anwenden."
+  },
+  "footer": {
+    "copyright": "© 2026 PicEdit. Alle Rechte vorbehalten.",
+    "privacy": "Datenschutzerklärung",
+    "terms": "Nutzungsbedingungen",
+    "contact": "Kontakt"
+  },
+  "ad": {
+    "placeholder": "Werbefläche (wird nach AdSense-Genehmigung durch echte Werbung ersetzt)"
+  }
+}

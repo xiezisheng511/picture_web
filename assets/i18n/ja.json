@@ -1,0 +1,111 @@
+{
+  "site": {
+    "name": "PicEdit",
+    "tagline": "無料のブラウザベース画像編集ツール",
+    "taglineEn": "Free browser-based photo editor"
+  },
+  "nav": {
+    "home": "ホーム",
+    "tools": "ツール",
+    "about": "概要",
+    "language": "言語"
+  },
+  "home": {
+    "heroTitle": "シンプルで高速、プライバシー重視の画像編集",
+    "heroSubtitle": "ログイン不要。ファイルはサーバーにアップロードされません。すべてブラウザ内で処理されます。",
+    "ctaPrimary": "始める",
+    "ctaSecondary": "詳しく見る",
+    "featuresTitle": "特徴",
+    "toolsTitle": "ツールを選択",
+    "trustBadge": "🔒 ファイルはサーバーにアップロードされません",
+    "adNote": "広告枠",
+    "seoTitle": "PicEdit を選ぶ理由",
+    "seoContent": "PicEdit は完全に無料のオンライン画像編集ツールです。背景色変更、透かし除去、AI切り抜きなどの一般的な機能を提供します。すべての処理はブラウザ内でローカルに行われ、ファイルがサーバーにアップロードされることは決してありません。身分証明書照片、SNS用画像、Eコマース 商品画像など、PicEdit で素早く完了できます。"
+  },
+  "tools": {
+    "bgColor": {
+      "title": "背景色変更",
+      "desc": "証明写真、商品画像の背景を一瞬で変更"
+    },
+    "removeWatermark": {
+      "title": "透かし除去",
+      "desc": "透かし領域をスマートに修復"
+    },
+    "edit": {
+      "title": "基本編集",
+      "desc": "切り抜き、サイズ変更、圧縮、形式変換"
+    },
+    "aiCutout": {
+      "title": "AI切り抜き",
+      "desc": "高精度の人物・物品切り抜き"
+    }
+  },
+  "uploader": {
+    "title": "画像をここにドロップ",
+    "or": "または",
+    "browse": "ファイルを選択",
+    "hint": "PNG、JPG、WebP対応 最大10MB",
+    "invalidType": "サポートされていないファイル形式",
+    "tooLarge": "ファイルが10MBを超えています"
+  },
+  "common": {
+    "download": "ダウンロード",
+    "reset": "やり直す",
+    "process": "処理",
+    "processing": "処理中…",
+    "error": "処理に失敗しました",
+    "tryAgain": "再試行",
+    "uploadFirst": "まず画像をアップロードしてください",
+    "result": "結果",
+    "before": "元画像",
+    "after": "結果",
+    "or": "または",
+    "format": "形式",
+    "quality": "品質",
+    "color": "色"
+  },
+  "bgColor": {
+    "presets": "プリセット色",
+    "red": "赤",
+    "blue": "青",
+    "white": "白",
+    "transparent": "透明",
+    "custom": "カスタム",
+    "tolerance": "許容範囲",
+    "edgeHint": "実際の背景に 가까운色を選択すると更好的結果が得られます"
+  },
+  "watermark": {
+    "instruction": "画像上でドラッグして透かし領域を選択",
+    "clear": "選択をクリア",
+    "method": "修復方法",
+    "blur": "ぼかし",
+    "fill": "塗りつぶし",
+    "inpaint": "スマート修復"
+  },
+  "edit": {
+    "crop": "切り抜き",
+    "resize": "サイズ変更",
+    "rotate": "回転",
+    "flipH": "水平反転",
+    "flipV": "垂直反転",
+    "compress": "圧縮",
+    "convert": "形式変換",
+    "width": "幅",
+    "height": "高さ",
+    "keepRatio": "比率を維持"
+  },
+  "aiCutout": {
+    "apiKeyMissing": "remove.bg API Key を設定してください（サイト管理者に連絡）",
+    "processing": "AIサービスにアップロード中…",
+    "result": "透明背景画像を生成しました。新しい背景を適用できます。"
+  },
+  "footer": {
+    "copyright": "© 2026 PicEdit. All rights reserved.",
+    "privacy": "プライバシーポリシー",
+    "terms": "利用規約",
+    "contact": "お問い合わせ"
+  },
+  "ad": {
+    "placeholder": "広告枠（AdSense承認后将现实真正的广告）"
+  }
+}

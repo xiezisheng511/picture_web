@@ -322,18 +322,14 @@ function Link({ to, className, children }) {
 // Shared components
 // ============================================================================
 function AdSlot({ size = 'banner' }) {
-  const ref = useRef(null);
+  const { t } = useT();
   const heights = { banner: 'min-h-[90px]', sidebar: 'min-h-[250px]', inline: 'min-h-[120px]' };
-  const adSizes = { banner: '728x90', sidebar: '300x250', inline: '336x280' };
-  useEffect(() => {
-    if (window.adsbygoogle && ref.current) {
-      try { adsbygoogle.push(ref.current); } catch (_) {}
-    }
-  }, []);
   return html`
-    <div className="w-full flex justify-center">
-      <ins ref=${ref} className="adsbygoogle" style=${{ display: 'block', width: adSizes[size], height: adSizes[size] }}
-           data-ad-client="ca-pub-9686480632598523" data-ad-slot=${adSizes[size]}></ins>
+    <div className=${`w-full bg-gray-50 border border-dashed border-gray-200 rounded-md flex items-center justify-center text-xs text-gray-400 ${heights[size]}`}>
+      <div className="text-center px-4">
+        <div className="uppercase tracking-wider mb-1">${t('home.adNote')}</div>
+        <div className="text-gray-300">${t('ad.placeholder')}</div>
+      </div>
     </div>`;
 }
 

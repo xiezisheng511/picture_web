@@ -699,7 +699,7 @@ function RemoveWatermark() {
         <p className="text-gray-600 mt-1">${t('tools.removeWatermark.desc')}</p>
       </header>
       <${AdSlot} size="inline" className="mb-6" />
-      ${!src ? html`<${ImageUploader} onLoad=${(img, canvas) => setSrc({ img, canvas })} />` : html\`
+      ${!src ? html`<${ImageUploader} onLoad=${(img, canvas) => setSrc({ img, canvas })} />` : html`
         <div className="space-y-6">
           <p className="text-sm text-gray-600">${t('watermark.instruction')} <span className="text-xs text-gray-400">(支持多选)</span></p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -707,55 +707,55 @@ function RemoveWatermark() {
               <p className="text-sm font-medium text-gray-700 mb-2">${t('common.before')}</p>
               <div className="relative inline-block cursor-crosshair" onMouseDown=${onDown} onMouseMove=${onMove} onMouseUp=${onUp} onMouseLeave=${onUp}>
                 <img ref=${imgRef} src=${src.img.dataUrl} alt="" className="block max-w-full max-h-96" />
-                \${sels.map((r, i) => {
+                ${sels.map((r, i) => {
                   const r2 = imgRef.current && imgRef.current.getBoundingClientRect();
                   if (!r2) return null;
                   const sx = r2.width / imgRef.current.naturalWidth;
                   const sy = r2.height / imgRef.current.naturalHeight;
-                  return html\`<div key=${i} className="absolute border-2 border-red-500 bg-red-500/10 pointer-events-none" style=${{ left: r.x * sx, top: r.y * sy, width: r.width * sx, height: r.height * sy }}></div>\`;
+                  return html`<div key=${i} className="absolute border-2 border-red-500 bg-red-500/10 pointer-events-none" style=${{ left: r.x * sx, top: r.y * sy, width: r.width * sx, height: r.height * sy }}></div>`;
                 })}
-                \${drag && imgRef.current && (() => {
+                ${drag && imgRef.current && (() => {
                   const r = imgRef.current.getBoundingClientRect();
                   const sx = r.width / imgRef.current.naturalWidth;
                   const sy = r.height / imgRef.current.naturalHeight;
-                  return html\`<div className="absolute border-2 border-dashed border-yellow-400 bg-yellow-400/10 pointer-events-none" style=${{ left: drag.x * sx, top: drag.y * sy, width: drag.width * sx, height: drag.height * sy }}></div>\`;
+                  return html`<div className="absolute border-2 border-dashed border-yellow-400 bg-yellow-400/10 pointer-events-none" style=${{ left: drag.x * sx, top: drag.y * sy, width: drag.width * sx, height: drag.height * sy }}></div>`;
                 })()}
               </div>
-              \${sels.length > 0 && html\`
+              ${sels.length > 0 && html`
                 <div className="mt-2 flex flex-wrap gap-1">
-                  \${sels.map((r, i) => html\`
+                  ${sels.map((r, i) => html`
                     <span key=${i} className="inline-flex items-center gap-1 text-xs bg-red-50 border border-red-200 text-red-600 px-2 py-0.5 rounded cursor-pointer hover:bg-red-100" onClick=${() => removeRegion(i)} title="点击移除">
-                      #\${i+1} (\${Math.round(r.width)}x\${Math.round(r.height)}) <span className="text-red-400 font-bold">×</span>
-                    </span>\`)}
-                </div>\`}
+                      #${i+1} (${Math.round(r.width)}x${Math.round(r.height)}) <span className="text-red-400 font-bold">×</span>
+                    </span>`)}
+                </div>`}
             </div>
             <div>
               <p className="text-sm font-medium text-gray-700 mb-2">${t('common.after')}</p>
-              \${result ? html\`<${Preview} src=${result} />\` : html\`
+              ${result ? html`<${Preview} src=${result} />` : html`
                 <div className="rounded-lg border border-dashed border-gray-300 h-64 flex items-center justify-center text-gray-400 text-sm">
-                  \${busy ? t('common.processing') : t('common.process') + ' →'}
-                </div>\`}
+                  ${busy ? t('common.processing') : t('common.process') + ' →'}
+                </div>`}
             </div>
           </div>
           <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">${t('watermark.method')}</label>
               <div className="flex flex-wrap gap-2">
-                <button onClick=${() => setMethod('lama')} className=\${\`px-3 py-1.5 rounded-md text-sm \${method === 'lama' ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}\`}>🤖 AI (LaMa)</button>
-                <button onClick=${() => setMethod('blur')} className=\${\`px-3 py-1.5 rounded-md text-sm \${method === 'blur' ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}\`}>\${t('watermark.blur')}</button>
-                <button onClick=${() => setMethod('fill')} className=\${\`px-3 py-1.5 rounded-md text-sm \${method === 'fill' ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}\`}>\${t('watermark.fill')}</button>
+                <button onClick=${() => setMethod('lama')} className=${`px-3 py-1.5 rounded-md text-sm ${method === 'lama' ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>🤖 AI (LaMa)</button>
+                <button onClick=${() => setMethod('blur')} className=${`px-3 py-1.5 rounded-md text-sm ${method === 'blur' ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>${t('watermark.blur')}</button>
+                <button onClick=${() => setMethod('fill')} className=${`px-3 py-1.5 rounded-md text-sm ${method === 'fill' ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>${t('watermark.fill')}</button>
               </div>
             </div>
             <div className="flex items-center gap-3 flex-wrap">
-              <${Button} onClick=${process} disabled=${busy || sels.length === 0}>\${busy ? t('common.processing') : t('common.process')}\${sels.length > 1 ? ` (\${sels.length} 区域)` : ''}</${Button}>
-              \${result && html\`<${Button} variant="secondary" onClick=${download}>⬇️ \${t('common.download')}</${Button}>\`}
-              <${Button} variant="ghost" onClick=${() => setSels([])} disabled=\${sels.length === 0}>${t('watermark.clear')}</${Button}>
+              <${Button} onClick=${process} disabled=${busy || sels.length === 0}>${busy ? t('common.processing') : t('common.process')}${sels.length > 1 ? ` (${sels.length} 区域)` : ''}</${Button}>
+              ${result && html`<${Button} variant="secondary" onClick=${download}>⬇️ ${t('common.download')}</${Button}>`}
+              <${Button} variant="ghost" onClick=${() => setSels([])} disabled=${sels.length === 0}>${t('watermark.clear')}</${Button}>
               <${Button} variant="ghost" onClick=${() => { setSrc(null); setResult(null); setSels([]); }}>${t('common.reset')}</${Button}>
             </div>
-            \${err && html\`<p className="text-sm text-red-500">\${err}</p>\`}
+            ${err && html`<p className="text-sm text-red-500">${err}</p>`}
           </div>
-        </div>\`}
-    </div>\`;
+        </div>`}
+    </div>`;
 }function Edit() {
   const { t } = useT();
   const [src, setSrc] = useState(null);

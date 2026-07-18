@@ -703,11 +703,17 @@ function RemoveWatermark() {
     return r.height / imgRef.current.naturalHeight;
   };
 
-  const renderBefore = () => html`<>
-    <img ref=${imgRef} src=${src.img.dataUrl} alt="" className="block max-w-full max-h-96" />
-    ${sels.map((r, i) => html`<div key=${i} className="absolute border-2 border-red-500 bg-red-500/10 pointer-events-none" style=${{ left: r.x * getSx(), top: r.y * getSy(), width: r.width * getSx(), height: r.height * getSy() }}></div>`)}
-    ${drag && html`<div className="absolute border-2 border-dashed border-yellow-400 bg-yellow-400/10 pointer-events-none" style=${{ left: drag.x * getSx(), top: drag.y * getSy(), width: drag.width * getSx(), height: drag.height * getSy() }}></div>`}
-  </>`;
+  const renderBefore = () => {
+    const sx = getSx(), sy = getSy();
+    const overlay = [];
+    sels.forEach((r, i) => {
+      overlay.push(html('<div></div>', {key: i, className: 'absolute border-2 border-red-500 bg-red-500/10 pointer-events-none', style: 'left:' + (r.x * sx) + 'px;top:' + (r.y * sy) + 'px;width:' + (r.width * sx) + 'px;height:' + (r.height * sy) + 'px;'}));
+    });
+    if (drag) {
+      overlay.push(html('<div></div>', {className: 'absolute border-2 border-dashed border-yellow-400 bg-yellow-400/10 pointer-events-none', style: 'left:' + (drag.x * sx) + 'px;top:' + (drag.y * sy) + 'px;width:' + (drag.width * sx) + 'px;height:' + (drag.height * sy) + 'px;'}));
+    }
+    return html('<><img ref=${imgRef} src=${src.img.dataUrl} alt="" className="block max-w-full max-h-96" />${overlay}</>');
+  };
 
   return html`
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">

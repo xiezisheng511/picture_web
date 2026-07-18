@@ -674,7 +674,7 @@ function RemoveWatermark() {
     start.current = null; setDrag(null);
   };
 
-  function removeRegion(idx) { setSels(prev => prev.filter((_, i) => i !== idx)); }
+  const removeRegion = (idx) => setSels(prev => prev.filter((_, i) => i !== idx));
 
   async function process() {
     if (!src || sels.length === 0) return;
@@ -689,8 +689,25 @@ function RemoveWatermark() {
   async function download() {
     if (!src || sels.length === 0) return;
     const blob = await lib.removeWatermark(src.canvas, sels, method);
-    lib.downloadBlob(blob, `picedit-clean-${Date.now()}.png`);
+    lib.downloadBlob(blob, 'picedit-clean-' + Date.now() + '.png');
   }
+
+  const getSx = () => {
+    if (!imgRef.current) return 1;
+    const r = imgRef.current.getBoundingClientRect();
+    return r.width / imgRef.current.naturalWidth;
+  };
+  const getSy = () => {
+    if (!imgRef.current) return 1;
+    const r = imgRef.current.getBoundingClientRect();
+    return r.height / imgRef.current.naturalHeight;
+  };
+
+  const renderBefore = () => html`<>
+    <img ref=${imgRef} src=${src.img.dataUrl} alt="" className="block max-w-full max-h-96" />
+    ${sels.map((r, i) => html`<div key=${i} className="absolute border-2 border-red-500 bg-red-500/10 pointer-events-none" style=${{ left: r.x * getSx(), top: r.y * getSy(), width: r.width * getSx(), height: r.height * getSy() }}></div>`)}
+    ${drag && html`<div className="absolute border-2 border-dashed border-yellow-400 bg-yellow-400/10 pointer-events-none" style=${{ left: drag.x * getSx(), top: drag.y * getSy(), width: drag.width * getSx(), height: drag.height * getSy() }}></div>`}
+  </>`;
 
   return html`
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
@@ -706,27 +723,13 @@ function RemoveWatermark() {
             <div>
               <p className="text-sm font-medium text-gray-700 mb-2">${t('common.before')}</p>
               <div className="relative inline-block cursor-crosshair" onMouseDown=${onDown} onMouseMove=${onMove} onMouseUp=${onUp} onMouseLeave=${onUp}>
-                <img ref=${imgRef} src=${src.img.dataUrl} alt="" className="block max-w-full max-h-96" />
-                ${sels.map((r, i) => {
-                  const r2 = imgRef.current && imgRef.current.getBoundingClientRect();
-                  if (!r2) return null;
-                  const sx = r2.width / imgRef.current.naturalWidth;
-                  const sy = r2.height / imgRef.current.naturalHeight;
-                  return html`<div key=${i} className="absolute border-2 border-red-500 bg-red-500/10 pointer-events-none" style=${{ left: r.x * sx, top: r.y * sy, width: r.width * sx, height: r.height * sy }}></div>`;
-                })}
-                ${drag && imgRef.current && (() => {
-                  const r = imgRef.current.getBoundingClientRect();
-                  const sx = r.width / imgRef.current.naturalWidth;
-                  const sy = r.height / imgRef.current.naturalHeight;
-                  return html`<div className="absolute border-2 border-dashed border-yellow-400 bg-yellow-400/10 pointer-events-none" style=${{ left: drag.x * sx, top: drag.y * sy, width: drag.width * sx, height: drag.height * sy }}></div>`;
-                })()}
+                ${renderBefore()}
               </div>
               ${sels.length > 0 && html`
                 <div className="mt-2 flex flex-wrap gap-1">
-                  ${sels.map((r, i) => html`
-                    <span key=${i} className="inline-flex items-center gap-1 text-xs bg-red-50 border border-red-200 text-red-600 px-2 py-0.5 rounded cursor-pointer hover:bg-red-100" onClick=${() => removeRegion(i)} title="点击移除">
-                      #${i+1} (${Math.round(r.width)}x${Math.round(r.height)}) <span className="text-red-400 font-bold">×</span>
-                    </span>`)}
+                  ${sels.map((r, i) => html`<span key=${i} className="inline-flex items-center gap-1 text-xs bg-red-50 border border-red-200 text-red-600 px-2 py-0.5 rounded cursor-pointer hover:bg-red-100" onClick=${() => removeRegion(i)} title="点击移除">
+                    #${i + 1} (${Math.round(r.width)}x${Math.round(r.height)}) <span className="text-red-400 font-bold">x</span>
+                  </span>`)}
                 </div>`}
             </div>
             <div>
@@ -741,13 +744,13 @@ function RemoveWatermark() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">${t('watermark.method')}</label>
               <div className="flex flex-wrap gap-2">
-                <button onClick=${() => setMethod('lama')} className=${`px-3 py-1.5 rounded-md text-sm ${method === 'lama' ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>🤖 AI (LaMa)</button>
-                <button onClick=${() => setMethod('blur')} className=${`px-3 py-1.5 rounded-md text-sm ${method === 'blur' ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>${t('watermark.blur')}</button>
-                <button onClick=${() => setMethod('fill')} className=${`px-3 py-1.5 rounded-md text-sm ${method === 'fill' ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>${t('watermark.fill')}</button>
+                <button onClick=${() => setMethod('lama')} className="px-3 py-1.5 rounded-md text-sm ${method === 'lama' ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}">🤖 AI (LaMa)</button>
+                <button onClick=${() => setMethod('blur')} className="px-3 py-1.5 rounded-md text-sm ${method === 'blur' ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}">${t('watermark.blur')}</button>
+                <button onClick=${() => setMethod('fill')} className="px-3 py-1.5 rounded-md text-sm ${method === 'fill' ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}">${t('watermark.fill')}</button>
               </div>
             </div>
             <div className="flex items-center gap-3 flex-wrap">
-              <${Button} onClick=${process} disabled=${busy || sels.length === 0}>${busy ? t('common.processing') : t('common.process')}${sels.length > 1 ? ` (${sels.length} 区域)` : ''}</${Button}>
+              <${Button} onClick=${process} disabled=${busy || sels.length === 0}>${busy ? t('common.processing') : t('common.process')}${sels.length > 1 ? ' (' + sels.length + ' 区域)' : ''}</${Button}>
               ${result && html`<${Button} variant="secondary" onClick=${download}>⬇️ ${t('common.download')}</${Button}>`}
               <${Button} variant="ghost" onClick=${() => setSels([])} disabled=${sels.length === 0}>${t('watermark.clear')}</${Button}>
               <${Button} variant="ghost" onClick=${() => { setSrc(null); setResult(null); setSels([]); }}>${t('common.reset')}</${Button}>
@@ -756,7 +759,8 @@ function RemoveWatermark() {
           </div>
         </div>`}
     </div>`;
-}function Edit() {
+}
+function Edit() {
   const { t } = useT();
   const [src, setSrc] = useState(null);
   const [working, setWorking] = useState(null);

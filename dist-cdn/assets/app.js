@@ -1,10 +1,10 @@
 /* PicEdit - zero-build static bundle
- * Loads React 18 from cdn.jsdelivr.net via importmap.
+ * Loads React 18 from esm.sh, renders the SPA via hash routing.
  * No bundler, no npm install required. Drop this folder on any static host.
  */
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { createRoot } from 'react-dom/client';
-import htm from 'htm';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'https://esm.sh/react@18.3.1';
+import { createRoot } from 'https://esm.sh/react-dom@18.3.1/client';
+import htm from 'https://esm.sh/htm@3.1.1';
 
 const html = htm.bind(React.createElement);
 
@@ -16,34 +16,15 @@ const dict = { zh: null, en: null };
 
 async function loadDict(lang) {
   if (dict[lang]) return dict[lang];
-  const res = await fetch(`./assets/i18n/${lang}.json`);
+  const res = await fetch(`/assets/i18n/${lang}.json`);
   dict[lang] = await res.json();
   return dict[lang];
 }
 
 function detectInitialLang() {
   const saved = localStorage.getItem(STORAGE_KEY);
-  // Check if user has explicitly saved a language
-  const validLangs = ['zh', 'en', 'tw', 'ja', 'de'];
-  if (validLangs.includes(saved)) return saved;
-  
-  // Auto-detect based on browser language
-  const lang = (navigator.language || 'en').toLowerCase();
-  
-  // Traditional Chinese (Hong Kong, Taiwan, Macau)
-  if (lang.startsWith('zh-hant') || lang === 'zh-tw' || lang === 'zh-hk' || lang === 'zh-mo') {
-    return 'tw';
-  }
-  // Simplified Chinese (Mainland China)
-  if (lang.startsWith('zh') || lang === 'zh-cn' || lang === 'zh-sg') {
-    return 'zh';
-  }
-  // Japanese
-  if (lang.startsWith('ja')) return 'ja';
-  // German
-  if (lang.startsWith('de')) return 'de';
-  // Default to English
-  return 'en';
+  if (saved === 'zh' || saved === 'en') return saved;
+  return (navigator.language || 'en').toLowerCase().startsWith('zh') ? 'zh' : 'en';
 }
 
 const I18nContext = React.createContext({ lang: 'en', t: (k) => k, setLang: () => {} });
@@ -133,26 +114,18 @@ const lib = {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   },
   cornerColor(ctx, w, h) {
-    // Sample a 5x5 region at each corner and return the lightest color
-    // (background is usually the brightest region — a person's skin/hair
-    //  is darker than white background).
-    const samples = [
-      [0, 0], [w - 5, 0], [0, h - 5], [w - 5, h - 5],
+    const pts = [
+      [0, 0],
+      [w - 1, 0],
+      [0, h - 1],
+      [w - 1, h - 1],
     ];
-    let bestR = 255, bestG = 255, bestB = 255, bestSum = -1;
-    for (const [sx, sy] of samples) {
-      let r = 0, g = 0, b = 0, n = 0;
-      for (let dy = 0; dy < 5; dy++) {
-        for (let dx = 0; dx < 5; dx++) {
-          const d = ctx.getImageData(sx + dx, sy + dy, 1, 1).data;
-          r += d[0]; g += d[1]; b += d[2]; n++;
-        }
-      }
-      r /= n; g /= n; b /= n;
-      const sum = r + g + b;
-      if (sum > bestSum) { bestSum = sum; bestR = r; bestG = g; bestB = b; }
+    let r = 0, g = 0, b = 0;
+    for (const [x, y] of pts) {
+      const d = ctx.getImageData(x, y, 1, 1).data;
+      r += d[0]; g += d[1]; b += d[2];
     }
-    return [Math.round(bestR), Math.round(bestG), Math.round(bestB)];
+    return [Math.round(r / 4), Math.round(g / 4), Math.round(b / 4)];
   },
   async changeBackground(source, { mode, color, tolerance }) {
     const ctx = source.getContext('2d', { willReadFrequently: true });
@@ -160,13 +133,7 @@ const lib = {
     const imgData = ctx.getImageData(0, 0, width, height);
     const data = imgData.data;
     const ref = lib.cornerColor(ctx, width, height);
-    // RGB → approximate CIE-Lab lightness (0-100 scale).
-    // Use luminance difference instead of raw RGB distance — much more
-    // robust for white backgrounds because shadowed/anti-aliased edges
-    // of the foreground still have very different lightness.
-    const refLum = 0.299 * ref[0] + 0.587 * ref[1] + 0.114 * ref[2];
-    // tolerance 0-100 maps to lightness delta 0-60 (very forgiving to 255 white)
-    const threshold = (tolerance / 100) * 60;
+    const threshold = (tolerance / 100) * 255 * 1.732;
     const mask = new Uint8Array(width * height);
     const stack = [];
     for (let x = 0; x < width; x++) {
@@ -182,14 +149,7 @@ const lib = {
       if (mask[idx]) continue;
       const px = idx * 4;
       const dr = data[px] - ref[0], dg = data[px + 1] - ref[1], db = data[px + 2] - ref[2];
-      // Combine: Euclidean distance + luminance delta (both must agree it's "background-like")
-      const euclid = Math.sqrt(dr * dr + dg * dg + db * db);
-      const lum = 0.299 * data[px] + 0.587 * data[px + 1] + 0.114 * data[px + 2];
-      const lumDelta = Math.abs(lum - refLum);
-      // Pixel counts as background only if BOTH:
-      // - colour distance ≤ threshold (e.g. 154 at tol=35)
-      // - luminance is within tolerance of bg luminance
-      if (euclid > threshold * 4 || lumDelta > threshold) continue;
+      if (Math.sqrt(dr * dr + dg * dg + db * db) > threshold) continue;
       mask[idx] = 1;
       const x = idx % width, y = (idx - x) / width;
       if (x > 0) stack.push(idx - 1);
@@ -197,145 +157,33 @@ const lib = {
       if (y > 0) stack.push(idx - width);
       if (y < height - 1) stack.push(idx + width);
     }
-
-    // Two-step refinement of the mask:
-//   1) DILATE foreground (mask=0) outward by `erode` pixels — this swallows
-//      anti-aliased white edge pixels so they become background.
-//   2) DILATE again by `restore` pixels with alpha feathering — restores
-//      the original foreground size but with a soft, halo-free edge.
-//
-// Implementation: build "tight" mask via BFS-based erosion, then
-// distance-to-bg for feathering.
-
-    // Step 1: erode mask (background grows into foreground by `erode` pixels)
-    const erode = 2;
-    const tight = new Uint8Array(mask.length);
-    // Initialise: copy mask
-    for (let i = 0; i < tight.length; i++) tight[i] = mask[i];
-    // Erode: for each pixel, if any neighbour within radius is foreground,
-    // it's still foreground; otherwise it's background
-    for (let pass = 0; pass < erode; pass++) {
-      const prev = new Uint8Array(tight);
-      for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-          const i = y * width + x;
-          if (prev[i]) continue; // already bg, stays bg
-          // It's foreground. Check 3x3 neighbourhood — if any neighbour is bg, become bg
-          let isEdge = false;
-          for (let dy = -1; dy <= 1 && !isEdge; dy++) {
-            const ny = y + dy;
-            if (ny < 0 || ny >= height) continue;
-            for (let dx = -1; dx <= 1; dx++) {
-              if (dx === 0 && dy === 0) continue;
-              const nx = x + dx;
-              if (nx < 0 || nx >= width) continue;
-              if (prev[ny * width + nx]) { isEdge = true; break; }
-            }
-          }
-          if (isEdge) tight[i] = 1; // edge fg → become bg
-        }
-      }
-    }
-
-    // Step 2: distance transform from bg pixels
-    const distToBg = new Int16Array(mask.length);
-    for (let i = 0; i < distToBg.length; i++) distToBg[i] = 32767;
-    const bfsQueue = [];
-    for (let i = 0; i < tight.length; i++) {
-      if (tight[i]) {
-        distToBg[i] = 0;
-        bfsQueue.push(i);
-      }
-    }
-    while (bfsQueue.length) {
-      const idx = bfsQueue.shift();
-      const d = distToBg[idx];
-      if (d >= 8) continue; // we only need distance up to 8 (expand radius)
-      const x = idx % width, y = (idx - x) / width;
-      const neighbours = [
-        x > 0 ? idx - 1 : -1,
-        x < width - 1 ? idx + 1 : -1,
-        y > 0 ? idx - width : -1,
-        y < height - 1 ? idx + width : -1,
-      ];
-      for (const n of neighbours) {
-        if (n < 0) continue;
-        if (distToBg[n] > d + 1) {
-          distToBg[n] = d + 1;
-          bfsQueue.push(n);
-        }
-      }
-    }
-
-    // Now write output:
-    //  - distToBg === 0  → background → new bg colour
-    //  - distToBg > 0 && <= feather → feathering zone → alpha based on distance
-    //  - distToBg > feather → fully foreground
-    const feather = 4;
     const out = document.createElement('canvas');
     out.width = width;
     out.height = height;
     const octx = out.getContext('2d');
     const outData = octx.createImageData(width, height);
     const buf = outData.data;
-
     if (mode === 'transparent') {
       for (let i = 0; i < mask.length; i++) {
         const si = i * 4;
-        if (distToBg[i] === 0) {
-          buf[si] = 0; buf[si + 1] = 0; buf[si + 2] = 0; buf[si + 3] = 0;
-        } else if (distToBg[i] <= feather) {
-          // Edge feather zone: output original pixel with partial alpha
-          // so anti-aliased halo blends smoothly with whatever is behind.
-          const a = Math.round((distToBg[i] / feather) * 255);
-          buf[si] = data[si]; buf[si + 1] = data[si + 1]; buf[si + 2] = data[si + 2];
-          buf[si + 3] = a;
-        } else {
-          buf[si] = data[si]; buf[si + 1] = data[si + 1]; buf[si + 2] = data[si + 2];
-          buf[si + 3] = 255;
+        if (mask[i]) buf[si + 3] = 0;
+        else {
+          buf[si] = data[si]; buf[si + 1] = data[si + 1];
+          buf[si + 2] = data[si + 2]; buf[si + 3] = 255;
         }
       }
     } else {
-      const [nr, ng, nb] = lib.hexToRgb(color || '#ffffff');
-      // Pre-composite foreground with new bg colour so the PNG is fully
-      // opaque — the edge alpha is resolved here, not left for the PNG
-      // viewer to guess at (which would fall back to white).
+      const [r, g, b] = lib.hexToRgb(color || '#ffffff');
       for (let i = 0; i < mask.length; i++) {
         const si = i * 4;
-        if (distToBg[i] === 0) {
-          buf[si] = nr; buf[si + 1] = ng; buf[si + 2] = nb; buf[si + 3] = 255;
-        } else if (distToBg[i] <= feather) {
-          // Composite: out = src * a + bg * (1-a)
-          const a = distToBg[i] / feather;
-          buf[si] = Math.round(data[si] * a + nr * (1 - a));
-          buf[si + 1] = Math.round(data[si + 1] * a + ng * (1 - a));
-          buf[si + 2] = Math.round(data[si + 2] * a + nb * (1 - a));
-          buf[si + 3] = 255;
-        } else {
-          buf[si] = data[si]; buf[si + 1] = data[si + 1]; buf[si + 2] = data[si + 2];
-          buf[si + 3] = 255;
-        }
+        if (mask[i]) { buf[si] = r; buf[si + 1] = g; buf[si + 2] = b; buf[si + 3] = 255; }
+        else { buf[si] = data[si]; buf[si + 1] = data[si + 1]; buf[si + 2] = data[si + 2]; buf[si + 3] = 255; }
       }
     }
     octx.putImageData(outData, 0, 0);
     return await lib.canvasToBlob(out, 'image/png', 0.95);
   },
-  async removeWatermark(source, regionOrRegions, method = 'blur') {
-    const { width, height } = source;
-    const regions = Array.isArray(regionOrRegions) ? regionOrRegions : (regionOrRegions ? [regionOrRegions] : []);
-    if (regions.length === 0) return await lib.canvasToBlob(source, 'image/png', 0.95);
-    // Expand a single selection with margin so the model has context to fill from.
-    if (method === 'ai') {
-      return await lib._lamaInpaint(source, regions);
-    }
-    // For 'blur' and 'fill': process each region sequentially using self-developed algorithm
-    for (const region of regions) {
-      await lib._selfInpaint(source, region, method);
-    }
-    return await lib.canvasToBlob(source, 'image/png', 0.95);
-  },
-  async _lamaInpaint(source, regions) {
-    // Fallback self-developed algorithm (works without external models)
+  async removeWatermark(source, region, method = 'blur') {
     const { width, height } = source;
     const ctx = source.getContext('2d', { willReadFrequently: true });
     const imgData = ctx.getImageData(0, 0, width, height);
@@ -343,205 +191,46 @@ const lib = {
     const { x, y, width: rw, height: rh } = region;
     const x0 = Math.max(0, x), y0 = Math.max(0, y);
     const x1 = Math.min(width, x + rw), y1 = Math.min(height, y + rh);
-    if (x1 <= x0 || y1 <= y0) return;
-
-    // Lazy-load ONNX Runtime Web on first use
-    if (!window.ort) {
-      await new Promise((res, rej) => {
-        const s = document.createElement('script');
-        s.src = 'https://cdn.bootcdn.net/ajax/libs/onnxruntime-web/1.23.0/ort.min.js';
-        s.onload = res;
-        s.onerror = () => rej(new Error('Failed to load onnxruntime-web'));
-        document.head.appendChild(s);
-      });
-    }
-    window.ort.env.wasm.wasmPaths = 'https://cdn.bootcdn.net/ajax/libs/onnxruntime-web/1.23.0/';
-
-    // Lazy-create ORT session (model URL is set by UI to blob URL of downloaded model)
-    if (!window.__lamaSession) {
-      const modelUrl = window.__lamaModelUrl || 'https://xiezisheng511.github.io/picture_web/models/lama_512_int8.onnx';
-      window.__lamaSession = await window.ort.InferenceSession.create(modelUrl, {
-        executionProviders: ['wasm'],
-        graphOptimizationLevel: 'all',
-      });
-    }
-    const session = window.__lamaSession;
-    const ort = window.ort;
-
-    // LaMa expects input shape [1, 3, H, W] (RGB float32) and mask [1, 1, H, W] (float 0/1)
-    // Resize to multiple of 8 (LaMa requirement)
-    // LaMa ONNX model expects fixed 512×512 input. We extract the
-    // selection + a small context margin, resize to 512×512, run
-    // inference, then upscale result back and composite.
-    const MODEL_SIZE = 512;
-    // Add a margin around the selection so LaMa has context to fill from
-    const margin = Math.round(Math.max(x1 - x0, y1 - y0) * 0.3);
-    const cropX0 = Math.max(0, x0 - margin);
-    const cropY0 = Math.max(0, y0 - margin);
-    const cropX1 = Math.min(width, x1 + margin);
-    const cropY1 = Math.min(height, y1 + margin);
-    const cropW = cropX1 - cropX0;
-    const cropH = cropY1 - cropY0;
-
-    // Crop the source into a 512x512 canvas (covers the selection area
-    // plus margin; the rest of the model input is background context).
-    const cropCanvas = document.createElement('canvas');
-    cropCanvas.width = MODEL_SIZE; cropCanvas.height = MODEL_SIZE;
-    const cctx = cropCanvas.getContext('2d');
-    cctx.drawImage(source, cropX0, cropY0, cropW, cropH, 0, 0, MODEL_SIZE, MODEL_SIZE);
-    const cropImg = cctx.getImageData(0, 0, MODEL_SIZE, MODEL_SIZE);
-    const cData = cropImg.data;
-
-    // LaMa lama_512_int8 expects input tensor [1, 4, 512, 512]:
-    //   channels 0-2: masked image RGB (0-1, region inside mask is 0)
-    //   channel 3:   binary mask (1 = to inpaint)
-    // Per g-ronimo/lama README: "Channels 0-2: masked image (RGB, 0-1,
-    //   masked region zeroed out). Channel 3: binary mask (0 or 1)."
-    const imgSize = MODEL_SIZE * MODEL_SIZE;
-    // Flatten [1, 4, 512, 512] = 4 * 512 * 512 = 1,048,576 floats
-    const inputData = new Float32Array(4 * imgSize);
-    // Convert selection rectangle in original coords to model coords
-    const scaleX = MODEL_SIZE / cropW;
-    const scaleY = MODEL_SIZE / cropH;
-    const mx0 = (x0 - cropX0) * scaleX;
-    const my0 = (y0 - cropY0) * scaleY;
-    const mx1 = (x1 - cropX0) * scaleX;
-    const my1 = (y1 - cropY0) * scaleY;
-    for (let y = 0; y < MODEL_SIZE; y++) {
-      for (let x = 0; x < MODEL_SIZE; x++) {
-        const i = y * MODEL_SIZE + x;
-        const si = i * 4;
-        // Channel 3 (mask): 1 inside selection, 0 outside
-        const inMask = (x >= mx0 && x < mx1 && y >= my0 && y < my1) ? 1.0 : 0.0;
-        inputData[3 * imgSize + i] = inMask;
-        if (inMask > 0) {
-          // Inside mask: zero out RGB (model expects masked image)
-          inputData[i] = 0;
-          inputData[imgSize + i] = 0;
-          inputData[2 * imgSize + i] = 0;
-        } else {
-          // Outside mask: pass through original RGB normalised to 0-1
-          inputData[i] = cData[si] / 255;
-          inputData[imgSize + i] = cData[si + 1] / 255;
-          inputData[2 * imgSize + i] = cData[si + 2] / 255;
-        }
-      }
-    }
-
-    const inputTensor = new ort.Tensor('float32', inputData, [1, 4, MODEL_SIZE, MODEL_SIZE]);
-
-    // Run inference. The model may name the input 'input' or 'image'.
-    const inputName = session.inputNames[0] || 'input';
-    const feeds = {};
-    feeds[inputName] = inputTensor;
-    const results = await session.run(feeds);
-
-    // Result shape: [1, 3, 512, 512], RGB float32 (0-1)
-    const outData = results[Object.keys(results)[0]].data;
-
-    // Build 512x512 result canvas
-    const outCropCanvas = document.createElement('canvas');
-    outCropCanvas.width = MODEL_SIZE; outCropCanvas.height = MODEL_SIZE;
-    const octx = outCropCanvas.getContext('2d');
-    const outImg = octx.createImageData(MODEL_SIZE, MODEL_SIZE);
-    for (let y = 0; y < MODEL_SIZE; y++) {
-      for (let x = 0; x < MODEL_SIZE; x++) {
-        const i = y * MODEL_SIZE + x;
-        const di = i * 4;
-        outImg.data[di] = Math.round(Math.max(0, Math.min(1, outData[i])) * 255);
-        outImg.data[di + 1] = Math.round(Math.max(0, Math.min(1, outData[imgSize + i])) * 255);
-        outImg.data[di + 2] = Math.round(Math.max(0, Math.min(1, outData[2 * imgSize + i])) * 255);
-        outImg.data[di + 3] = 255;
-      }
-    }
-    octx.putImageData(outImg, 0, 0);
-
-    // Composite result back to source canvas (only inside the crop region)
-    const finalctx = source.getContext('2d');
-    finalctx.save();
-    finalctx.beginPath();
-    finalctx.rect(cropX0, cropY0, cropW, cropH);
-    finalctx.clip();
-    finalctx.drawImage(outCropCanvas, 0, 0, MODEL_SIZE, MODEL_SIZE, cropX0, cropY0, cropW, cropH);
-    finalctx.restore();
-
-    return await lib.canvasToBlob(source, 'image/png', 0.95);
-  },
-
-  async _selfInpaint(source, region, method) {
-    // Self-developed algorithm: no external model needed.
-    // - 'fill': sample background colour from corners and fill selection
-    // - 'blur': apply box blur to selection area
-    const { width, height } = source;
-    const ctx = source.getContext('2d', { willReadFrequently: true });
-    const x = Math.max(0, region.x);
-    const y = Math.max(0, region.y);
-    const w = Math.min(width - x, region.width);
-    const h = Math.min(height - y, region.height);
-    if (w <= 0 || h <= 0) return;
-    const imgData = ctx.getImageData(x, y, w, h);
-    const data = imgData.data;
     if (method === 'fill') {
-      // Sample 4 corners (5x5) to find most common bg colour
-      const samples = [];
-      const tryAdd = (cx, cy) => {
-        if (cx < 0 || cy < 0 || cx >= width || cy >= height) return;
-        const i = (cy * width + cx) * 4;
-        samples.push([data[i], data[i+1], data[i+2]]);
-      };
-      // Sample just outside the selection
-      for (let dy = 0; dy < 5; dy++) {
-        for (let dx = 0; dx < 5; dx++) {
-          tryAdd(x - 1 - dx, y - 1 - dy);
-          tryAdd(x + w + dx, y - 1 - dy);
-          tryAdd(x - 1 - dx, y + h + dy);
-          tryAdd(x + w + dx, y + h + dy);
-        }
-      }
-      if (samples.length === 0) return;
-      // Use mode (most common colour, bucketed)
-      const buckets = new Map();
-      for (const [r, g, b] of samples) {
-        const key = `${r >> 4},${g >> 4},${b >> 4}`;
-        buckets.set(key, (buckets.get(key) || 0) + 1);
-      }
-      let bestKey = null, bestCount = 0;
-      for (const [k, c] of buckets) {
-        if (c > bestCount) { bestCount = c; bestKey = k; }
-      }
-      const [br, bg, bb] = bestKey.split(',').map(Number);
-      const fillR = br * 16 + 8, fillG = bg * 16 + 8, fillB = bb * 16 + 8;
-      for (let i = 0; i < data.length; i += 4) {
-        data[i] = fillR; data[i+1] = fillG; data[i+2] = fillB;
-      }
-    } else {
-      // 'blur': 3-pass box blur (radius 3)
-      const r = 3;
-      const tmp = new Uint8ClampedArray(data.length);
-      for (let pass = 0; pass < 3; pass++) {
-        const src = pass % 2 === 0 ? data : tmp;
-        const dst = pass % 2 === 0 ? tmp : data;
-        for (let yy = 0; yy < h; yy++) {
-          for (let xx = 0; xx < w; xx++) {
-            let rSum = 0, gSum = 0, bSum = 0, n = 0;
-            for (let dy = -r; dy <= r; dy++) {
-              const sy = yy + dy;
-              if (sy < 0 || sy >= h) continue;
-              for (let dx = -r; dx <= r; dx++) {
-                const sx = xx + dx;
-                if (sx < 0 || sx >= w) continue;
-                const i = (sy * w + sx) * 4;
-                rSum += src[i]; gSum += src[i+1]; bSum += src[i+2]; n++;
-              }
-            }
-            const i = (yy * w + xx) * 4;
-            dst[i] = rSum / n; dst[i+1] = gSum / n; dst[i+2] = bSum / n;
+      let r = 0, g = 0, b = 0, n = 0;
+      for (let yy = y0; yy < y1; yy++)
+        for (let xx = x0; xx < x1; xx++) {
+          const edge = xx === x0 || xx === x1 - 1 || yy === y0 || yy === y1 - 1;
+          if (edge) {
+            const i = (yy * width + xx) * 4;
+            r += data[i]; g += data[i + 1]; b += data[i + 2]; n++;
           }
         }
+      r = Math.round(r / Math.max(1, n));
+      g = Math.round(g / Math.max(1, n));
+      b = Math.round(b / Math.max(1, n));
+      for (let yy = y0; yy < y1; yy++)
+        for (let xx = x0; xx < x1; xx++) {
+          const i = (yy * width + xx) * 4;
+          data[i] = r; data[i + 1] = g; data[i + 2] = b;
+        }
+    } else {
+      for (let pass = 0; pass < 3; pass++) {
+        const copy = new Uint8ClampedArray(data);
+        for (let yy = y0 + 1; yy < y1 - 1; yy++)
+          for (let xx = x0 + 1; xx < x1 - 1; xx++) {
+            const i = (yy * width + xx) * 4;
+            for (let c = 0; c < 3; c++) {
+              let sum = 0;
+              for (let dy = -1; dy <= 1; dy++)
+                for (let dx = -1; dx <= 1; dx++) {
+                  const ni = ((yy + dy) * width + (xx + dx)) * 4;
+                  sum += copy[ni + c];
+                }
+              data[i + c] = Math.round(sum / 9);
+            }
+          }
       }
     }
-    ctx.putImageData(imgData, x, y);
-  },  rotate(source, deg) {
+    ctx.putImageData(imgData, 0, 0);
+    return await lib.canvasToBlob(source, 'image/png', 0.95);
+  },
+  rotate(source, deg) {
     const swap = deg % 180 !== 0;
     const out = document.createElement('canvas');
     out.width = swap ? source.height : source.width;
@@ -641,7 +330,7 @@ function AdSlot({ size = 'banner' }) {
         <div className="uppercase tracking-wider mb-1">${t('home.adNote')}</div>
         <div className="text-gray-300">${t('ad.placeholder')}</div>
       </div>
-    `;
+    </div>`;
 }
 
 function Header() {
@@ -655,7 +344,7 @@ function Header() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-16">
           <${Link} to="/" className="flex items-center gap-2">
-            <img src="./favicon.svg" alt="PicEdit" className="w-8 h-8" />
+            <img src="/favicon.svg" alt="PicEdit" className="w-8 h-8" />
             <span className="font-bold text-lg text-gray-900">${t('site.name')}</span>
           <//>
           <nav className="hidden md:flex items-center gap-1">
@@ -668,10 +357,7 @@ function Header() {
           </nav>
           <select aria-label=${t('nav.language')} value=${lang} onChange=${(e) => setLang(e.target.value)}
             className="text-sm border border-gray-200 rounded-md px-2 py-1 bg-white hover:border-primary-500">
-            <option value="zh">简体中文</option>
-            <option value="tw">繁體中文</option>
-            <option value="ja">日本語</option>
-            <option value="de">Deutsch</option>
+            <option value="zh">中文</option>
             <option value="en">English</option>
           </select>
         </div>
@@ -686,7 +372,7 @@ function Footer() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <img src="./favicon.svg" alt="PicEdit" className="w-6 h-6" />
+            <img src="/favicon.svg" alt="PicEdit" className="w-6 h-6" />
             <span className="text-sm text-gray-600">${t('footer.copyright')}</span>
           </div>
           <nav className="flex items-center gap-6 text-sm">
@@ -737,62 +423,13 @@ function ImageUploader({ onLoad }) {
       <span className="inline-block px-4 py-2 bg-primary-500 text-white rounded-lg text-sm font-medium">${t('uploader.browse')}</span>
       <p className="text-xs text-gray-400 mt-3">${t('uploader.hint')}</p>
       ${err && html`<p className="text-sm text-red-500 mt-3">${err}</p>`}
-    `;
+    </div>`;
 }
 
 function Preview({ src, checkerboard }) {
   return html`<div className=${`rounded-lg overflow-hidden border border-gray-200 ${checkerboard ? 'bg-checkerboard' : 'bg-gray-50'}`}>
     <img src=${src} alt="preview" className="block max-w-full max-h-96 mx-auto object-contain" />
   </div>`;
-}
-
-function Spinner({ label, progress }) {
-  return html`<div className="flex flex-col items-center justify-center gap-3 py-6 w-full px-4">
-    <svg className="animate-spin h-8 w-8 text-primary-500" viewBox="0 0 24 24" fill="none">
-      <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-opacity="0.2" />
-      <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
-    </svg>
-    <p className="text-sm text-gray-500 text-center">${label || t('common.processing')}</p>
-    ${progress !== undefined && progress !== null ? html`
-      <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-        <div className="bg-primary-500 h-2 transition-all" style=${{ width: progress + '%' }}></div>
-      </div>
-      <p className="text-xs text-gray-400">${progress.toFixed(0)}%</p>
-    ` : null}
-  </div>`;
-}
-
-async function fetchWithProgress(url, onProgress) {
-  let resp;
-  try {
-    resp = await fetch(url, { mode: 'cors', credentials: 'omit' });
-  } catch (e) {
-    throw new Error(`fetch failed (${e.message}). URL: ${url}. Try hard-refresh or clear site data.`);
-  }
-  if (!resp.ok) throw new Error(`HTTP ${resp.status} for ${url}`);
-  const total = parseInt(resp.headers.get('content-length') || '0', 10);
-  const reader = resp.body.getReader();
-  const chunks = [];
-  let received = 0;
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value);
-    received += value.length;
-    if (total) onProgress(received / total * 100);
-  }
-  const blob = new Blob(chunks);
-  return blob;
-}
-
-function loadScript(src) {
-  return new Promise((res, rej) => {
-    const s = document.createElement('script');
-    s.src = src;
-    s.onload = res;
-    s.onerror = () => rej(new Error('Failed to load ' + src));
-    document.head.appendChild(s);
-  });
 }
 
 function ColorPicker({ value, onChange, presets }) {
@@ -864,7 +501,7 @@ function BgColor() {
   const { t } = useT();
   const [src, setSrc] = useState(null);
   const [color, setColor] = useState('#ffffff');
-  const [tol, setTol] = useState(12);
+  const [tol, setTol] = useState(35);
   const [trans, setTrans] = useState(false);
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -903,8 +540,8 @@ function BgColor() {
             <div>
               <p className="text-sm font-medium text-gray-700 mb-2">${t('common.after')}</p>
               ${result ? html`<${Preview} src=${result} checkerboard=${trans} />` : html`
-                <div className="rounded-lg border border-dashed border-gray-300 h-64 flex items-center justify-center">
-                  ${busy ? html`<${Spinner} label=${t('common.processing')} />` : html`<span className="text-gray-400 text-sm">${t('common.process') + ' →'}</span>`}
+                <div className="rounded-lg border border-dashed border-gray-300 h-64 flex items-center justify-center text-gray-400 text-sm">
+                  ${busy ? t('common.processing') : t('common.process') + ' →'}
                 </div>`}
             </div>
           </div>
@@ -926,95 +563,51 @@ function BgColor() {
             </div>
             <div className="flex items-center gap-3 flex-wrap">
               <${Button} onClick=${process} disabled=${busy}>${busy ? t('common.processing') : t('common.process')}<//>
-              ${result && html`<${Button} variant="secondary" onClick=${download}>⬇️ ${t('common.download')}<//>`}`}
+              ${result && html`<${Button} variant="secondary" onClick=${download}>⬇️ ${t('common.download')}<//>`}
               <${Button} variant="ghost" onClick=${() => { setSrc(null); setResult(null); }}>${t('common.reset')}<//>
             </div>
             ${err && html`<p className="text-sm text-red-500">${err}</p>`}
           </div>
         </div>`}
-    `;
-}
-
-// CDN auto-selection for fastest loading
-const CDN_CANDIDATES = [
-  'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.23.0/',
-  'https://cdn.bootcdn.net/ajax/libs/onnxruntime-web/1.23.0/',
-  'https://unpkg.com/onnxruntime-web@1.23.0/',
-];
-let selectedCDN = null;
-
-async function getFastestCDN() {
-  if (selectedCDN) return selectedCDN;
-  const results = [];
-  for (const url of CDN_CANDIDATES) {
-    try {
-      const start = performance.now();
-      await fetch(url + 'ort.wasm.min.js', { method: 'HEAD', mode: 'no-cors' });
-      results.push({ url, time: performance.now() - start });
-    } catch {}
-  }
-  if (results.length > 0) {
-    results.sort((a, b) => a.time - b.time);
-    selectedCDN = results[0].url;
-  } else {
-    selectedCDN = CDN_CANDIDATES[0];
-  }
-  return selectedCDN;
+    </div>`;
 }
 
 function RemoveWatermark() {
   const { t } = useT();
   const [src, setSrc] = useState(null);
-  const [sels, setSels] = useState([]);
+  const [sel, setSel] = useState(null);
   const [drag, setDrag] = useState(null);
-  const [method, setMethod] = useState("blur");
+  const [method, setMethod] = useState('blur');
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState("");
-  const [progress, setProgress] = useState(0);
   const [err, setErr] = useState(null);
   const imgRef = useRef(null);
   const start = useRef(null);
 
   const onDown = (e) => {
     if (!imgRef.current) return;
-    e.preventDefault();
     const r = imgRef.current.getBoundingClientRect();
     const sx = imgRef.current.naturalWidth / r.width;
     const sy = imgRef.current.naturalHeight / r.height;
     start.current = { x: (e.clientX - r.left) * sx, y: (e.clientY - r.top) * sy };
+    setDrag(null);
   };
-
   const onMove = (e) => {
     if (!start.current || !imgRef.current) return;
     const r = imgRef.current.getBoundingClientRect();
     const sx = imgRef.current.naturalWidth / r.width;
     const sy = imgRef.current.naturalHeight / r.height;
     const cur = { x: (e.clientX - r.left) * sx, y: (e.clientY - r.top) * sy };
-    setDrag({
-      x: Math.min(start.current.x, cur.x),
-      y: Math.min(start.current.y, cur.y),
-      width: Math.abs(cur.x - start.current.x),
-      height: Math.abs(cur.y - start.current.y),
-    });
+    setDrag({ x: Math.min(start.current.x, cur.x), y: Math.min(start.current.y, cur.y), width: Math.abs(cur.x - start.current.x), height: Math.abs(cur.y - start.current.y) });
   };
-
   const onUp = () => {
-    if (drag && drag.width > 4 && drag.height > 4) {
-      setSels((prev) => [...prev, drag]);
-    }
+    if (drag && drag.width > 4 && drag.height > 4) setSel(drag);
     start.current = null;
-    setDrag(null);
   };
-
-  const removeSel = (idx) => setSels((prev) => prev.filter((_, i) => i !== idx));
 
   async function process() {
-    if (!src || sels.length === 0) return;
-    setBusy(true);
-    setErr(null);
-    setStatus("处理中…");
-    setProgress(0);
+    if (!src || !sel) return;
+    setBusy(true); setErr(null);
     try {
       let blob;
       if (method === "ai") {
@@ -1022,21 +615,19 @@ function RemoveWatermark() {
         const { width, height } = src.canvas;
         const maskData = new ImageData(width, height);
         const mdata = maskData.data;
-        for (const { x, y, width: rw, height: rh } of sels) {
-          const x0 = Math.max(0, x), y0 = Math.max(0, y);
-          const x1 = Math.min(width, x + rw), y1 = Math.min(height, y + rh);
-          for (let yy = y0; yy < y1; yy++)
-            for (let xx = x0; xx < x1; xx++) {
-              const i = (yy * width + xx) * 4;
-              mdata[i] = mdata[i+1] = mdata[i+2] = 255; mdata[i+3] = 255;
-            }
-        }
+        const { x, y, width: rw, height: rh } = sel;
+        const x0 = Math.max(0, x), y0 = Math.max(0, y);
+        const x1 = Math.min(width, x + rw), y1 = Math.min(height, y + rh);
+        for (let yy = y0; yy < y1; yy++)
+          for (let xx = x0; xx < x1; xx++) {
+            const i = (yy * width + xx) * 4;
+            mdata[i] = mdata[i+1] = mdata[i+2] = 255; mdata[i+3] = 255;
+          }
         const tcanvas = document.createElement("canvas");
         tcanvas.width = width; tcanvas.height = height;
         tcanvas.getContext("2d").putImageData(maskData, 0, 0);
         const imgB64 = src.canvas.toDataURL("image/png").split(",")[1];
         const mskB64 = tcanvas.toDataURL("image/png").split(",")[1];
-        setStatus("AI 推理中…");
         const resp = await fetch(NAS_API + "/inpaint", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1049,111 +640,70 @@ function RemoveWatermark() {
         for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
         blob = new Blob([bytes], { type: "image/png" });
       } else {
-        blob = await lib.removeWatermark(src.canvas, sels, method);
+        blob = await lib.removeWatermark(src.canvas, sel, method);
       }
       if (result) URL.revokeObjectURL(result);
       setResult(URL.createObjectURL(blob));
-      setStatus("");
-    } catch (e) {
-      setErr(String(e));
-      setStatus("处理失败: " + String(e));
-    } finally {
-      setBusy(false);
-    }
+    } catch (e) { setErr(String(e)); }
+    finally { setBusy(false); }
   }
-async function download() {
-    if (!src || sels.length === 0) return;
-    const blob = await lib.removeWatermark(src.canvas, sels, method);
-    lib.downloadBlob(blob, "picedit-clean-" + Date.now() + ".png");
+  async function download() {
+    if (!src || !sel) return;
+    const blob = await lib.removeWatermark(src.canvas, sel, method);
+    lib.downloadBlob(blob, `picedit-clean-${Date.now()}.png`);
   }
 
-  const getDisplayRects = () => {
-    if (!imgRef.current || !src) return [];
-    const r = imgRef.current.getBoundingClientRect();
-    const sx = r.width / imgRef.current.naturalWidth;
-    const sy = r.height / imgRef.current.naturalHeight;
-    return sels.map((s, i) => ({ ...s, sx, sy, i }));
-  };
-
-  return html`<div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-    <header className="mb-6">
-      <h1 className="text-3xl font-bold text-gray-900">${t("tools.removeWatermark.title")}</h1>
-      <p className="text-gray-600 mt-1">${t("tools.removeWatermark.desc")}</p>
-    </header>
-    <${AdSlot} size="inline" className="mb-6" />
-    ${!src
-      ? html`<${ImageUploader} onLoad=${(img, canvas) => setSrc({ img, canvas })} />`
-      : html`<div className="space-y-6">
-          <div className="bg-blue-50 rounded-lg p-4 text-sm text-blue-700">
-            💡 ${t("watermark.instruction")}
-            ${sels.length > 0 && html`<span className="ml-2 bg-blue-200 px-2 py-0.5 rounded-full">${sels.length} 个区域已选中</span>`}
-          </div>
+  return html`
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+      <header className="mb-6">
+        <h1 className="text-3xl font-bold text-gray-900">${t('tools.removeWatermark.title')}</h1>
+        <p className="text-gray-600 mt-1">${t('tools.removeWatermark.desc')}</p>
+      </header>
+      <${AdSlot} size="inline" className="mb-6" />
+      ${!src ? html`<${ImageUploader} onLoad=${(img, canvas) => setSrc({ img, canvas })} />` : html`
+        <div className="space-y-6">
+          <p className="text-sm text-gray-600">${t('watermark.instruction')}</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <p className="text-sm font-medium text-gray-700 mb-2">${t("common.before")}</p>
-              <div
-                className="relative inline-block cursor-crosshair select-none"
-                onMouseDown=${onDown}
-                onMouseMove=${onMove}
-                onMouseUp=${onUp}
-                onMouseLeave=${onUp}
-                onDragStart=${(e) => e.preventDefault()}
-              >
-                <img ref=${imgRef} src=${src.img.dataUrl} alt="" draggable=${false} className="block max-w-full max-h-96 pointer-events-none" />
-                ${(drag || sels.length > 0) && imgRef.current
-                  ? (() => {
-                      const r = imgRef.current.getBoundingClientRect();
-                      const sx = r.width / imgRef.current.naturalWidth;
-                      const sy = r.height / imgRef.current.naturalHeight;
-                      const all = drag ? [...sels, drag] : sels;
-                      return all.map((R, i) => html`<div key=${i} className="absolute border-2 ${i === all.length - 1 && drag ? 'border-blue-500 bg-blue-500/20 border-dashed' : 'border-red-500 bg-red-500/10'} pointer-events-none" style=${{ left: R.x * sx, top: R.y * sy, width: R.width * sx, height: R.height * sy }}></div>`);
-                    })()
-                  : null}
+              <p className="text-sm font-medium text-gray-700 mb-2">${t('common.before')}</p>
+              <div className="relative inline-block cursor-crosshair" onMouseDown=${onDown} onMouseMove=${onMove} onMouseUp=${onUp} onMouseLeave=${onUp}>
+                <img ref=${imgRef} src=${src.img.dataUrl} alt="" className="block max-w-full max-h-96" />
+                ${(drag || sel) && imgRef.current && (() => {
+                  const r = imgRef.current.getBoundingClientRect();
+                  const R = drag || sel;
+                  const sx = r.width / imgRef.current.naturalWidth;
+                  const sy = r.height / imgRef.current.naturalHeight;
+                  return html`<div className="absolute border-2 border-red-500 bg-red-500/10 pointer-events-none" style=${{ left: R.x * sx, top: R.y * sy, width: R.width * sx, height: R.height * sy }}></div>`;
+                })()}
               </div>
-              ${sels.length > 0 && html`<div className="mt-3 space-y-2">
-                <p className="text-xs text-gray-500 font-medium">已选区域：</p>
-                <div className="flex flex-wrap gap-2">
-                  ${sels.map((s, i) => html`<div key=${i} className="bg-red-50 border border-red-200 px-3 py-1 rounded-full text-xs flex items-center gap-2">
-                    <span className="text-red-600">#${i + 1}</span>
-                    <span className="text-gray-600">${Math.round(s.width)}×${Math.round(s.height)}</span>
-                    <button onClick=${() => removeSel(i)} className="text-red-400 hover:text-red-600 ml-1">×</button>
-                  </div>`)}
-                </div>
-              </div>`}
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-700 mb-2">${t("common.after")}</p>
-              ${result
-                ? html`<${Preview} src=${result} />`
-                : html`<div className="rounded-lg border border-dashed border-gray-300 h-64 flex items-center justify-center text-gray-400 text-sm">
-                    ${busy
-                      ? html`<div className="text-center"><div className="animate-spin text-2xl mb-2">⏳</div><span>${status}</span>${progress > 0 && html`<span> (${progress}%)</span>`}</div>`
-                      : html`<span>${t("common.process")} →</span>`}
-                  </div>`}
+              <p className="text-sm font-medium text-gray-700 mb-2">${t('common.after')}</p>
+              ${result ? html`<${Preview} src=${result} />` : html`
+                <div className="rounded-lg border border-dashed border-gray-300 h-64 flex items-center justify-center text-gray-400 text-sm">
+                  ${busy ? t('common.processing') : t('common.process') + ' →'}
+                </div>`}
             </div>
           </div>
           <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">${t("watermark.method")}</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">${t('watermark.method')}</label>
               <div className="flex gap-2">
-                <button onClick=${() => setMethod("blur")} className=${`px-3 py-1.5 rounded-md text-sm ${method === "blur" ? "bg-primary-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}>🔲 ${t("watermark.blur")}</button>
-                <button onClick=${() => setMethod("fill")} className=${`px-3 py-1.5 rounded-md text-sm ${method === "fill" ? "bg-primary-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}>🎨 ${t("watermark.fill")}</button>
-                <button onClick=${() => setMethod("ai")} className=${`px-3 py-1.5 rounded-md text-sm flex items-center gap-1 ${method === "ai" ? "bg-primary-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}><span>✨</span>${t("watermark.ai")}</button>
+                <button onClick=${() => setMethod('blur')} className=${`px-3 py-1.5 rounded-md text-sm ${method === 'blur' ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>${t('watermark.blur')}</button>
+                <button onClick=${() => setMethod('fill')} className=${`px-3 py-1.5 rounded-md text-sm ${method === 'fill' ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>${t('watermark.fill')}</button>
               </div>
             </div>
             <div className="flex items-center gap-3 flex-wrap">
-              <${Button} onClick=${process} disabled=${busy || sels.length === 0}>${busy ? t("common.processing") : t("common.process")}</${Button}>
-              ${result && html`<${Button} variant="secondary" onClick=${download}>⬇️ ${t("common.download")}</${Button}>`}
-              <${Button} variant="ghost" onClick=${() => setSels([])}>${t("watermark.clear")}</${Button}>
-              <${Button} variant="ghost" onClick=${() => { setSrc(null); setResult(null); setSels([]); }}>${t("common.reset")}</${Button}>
+              <${Button} onClick=${process} disabled=${busy || !sel}>${busy ? t('common.processing') : t('common.process')}<//>
+              ${result && html`<${Button} variant="secondary" onClick=${download}>⬇️ ${t('common.download')}<//>`}
+              <${Button} variant="ghost" onClick=${() => setSel(null)}>${t('watermark.clear')}<//>
+              <${Button} variant="ghost" onClick=${() => { setSrc(null); setResult(null); setSel(null); }}>${t('common.reset')}<//>
             </div>
             ${err && html`<p className="text-sm text-red-500">${err}</p>`}
           </div>
         </div>`}
-  </div>`;
+    </div>`;
 }
-
-
 
 function Edit() {
   const { t } = useT();

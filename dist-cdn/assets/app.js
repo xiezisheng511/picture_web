@@ -322,14 +322,18 @@ function Link({ to, className, children }) {
 // Shared components
 // ============================================================================
 function AdSlot({ size = 'banner' }) {
-  const { t } = useT();
+  const ref = useRef(null);
   const heights = { banner: 'min-h-[90px]', sidebar: 'min-h-[250px]', inline: 'min-h-[120px]' };
+  const adSizes = { banner: '728x90', sidebar: '300x250', inline: '336x280' };
+  useEffect(() => {
+    if (window.adsbygoogle && ref.current) {
+      try { adsbygoogle.push(ref.current); } catch (_) {}
+    }
+  }, []);
   return html`
-    <div className=${`w-full bg-gray-50 border border-dashed border-gray-200 rounded-md flex items-center justify-center text-xs text-gray-400 ${heights[size]}`}>
-      <div className="text-center px-4">
-        <div className="uppercase tracking-wider mb-1">${t('home.adNote')}</div>
-        <div className="text-gray-300">${t('ad.placeholder')}</div>
-      </div>
+    <div className="w-full flex justify-center">
+      <ins ref=${ref} className="adsbygoogle" style=${{ display: 'block', width: adSizes[size], height: adSizes[size] }}
+           data-ad-client="ca-pub-9686480632598523" data-ad-slot=${adSizes[size]}></ins>
     </div>`;
 }
 
@@ -575,7 +579,7 @@ function BgColor() {
 function RemoveWatermark() {
   const { t } = useT();
   const [src, setSrc] = useState(null);
-  const [sel, setSel] = useState(null);
+  const [sels, setSels] = useState([]);
   const [drag, setDrag] = useState(null);
   const [method, setMethod] = useState('blur');
   const [result, setResult] = useState(null);
@@ -589,7 +593,7 @@ function RemoveWatermark() {
     const r = imgRef.current.getBoundingClientRect();
     const sx = imgRef.current.naturalWidth / r.width;
     const sy = imgRef.current.naturalHeight / r.height;
-    start.current = { x: (e.clientX - r.left) * sx, y: (e.clientY - r.top) * sy };
+    start.current = { x: (e.clientX - r.left) * sx, y: (e.clientY - r.top) * sy, shiftKey: e.shiftKey };
     setDrag(null);
   };
   const onMove = (e) => {
@@ -601,12 +605,18 @@ function RemoveWatermark() {
     setDrag({ x: Math.min(start.current.x, cur.x), y: Math.min(start.current.y, cur.y), width: Math.abs(cur.x - start.current.x), height: Math.abs(cur.y - start.current.y) });
   };
   const onUp = () => {
-    if (drag && drag.width > 4 && drag.height > 4) setSel(drag);
+    if (drag && drag.width > 4 && drag.height > 4) {
+      if (start.current && start.current.shiftKey) {
+        setSels(prev => [...prev, drag]);
+      } else {
+        setSels([drag]);
+      }
+    }
     start.current = null;
   };
 
   async function process() {
-    if (!src || !sel) return;
+    if (!src || sels.length === 0) return;
     setBusy(true); setErr(null);
     try {
       let blob;
@@ -615,14 +625,16 @@ function RemoveWatermark() {
         const { width, height } = src.canvas;
         const maskData = new ImageData(width, height);
         const mdata = maskData.data;
-        const { x, y, width: rw, height: rh } = sel;
-        const x0 = Math.max(0, x), y0 = Math.max(0, y);
-        const x1 = Math.min(width, x + rw), y1 = Math.min(height, y + rh);
-        for (let yy = y0; yy < y1; yy++)
-          for (let xx = x0; xx < x1; xx++) {
-            const i = (yy * width + xx) * 4;
-            mdata[i] = mdata[i+1] = mdata[i+2] = 255; mdata[i+3] = 255;
-          }
+        for (const sel of sels) {
+          const { x, y, width: rw, height: rh } = sel;
+          const x0 = Math.max(0, x), y0 = Math.max(0, y);
+          const x1 = Math.min(width, x + rw), y1 = Math.min(height, y + rh);
+          for (let yy = y0; yy < y1; yy++)
+            for (let xx = x0; xx < x1; xx++) {
+              const i = (yy * width + xx) * 4;
+              mdata[i] = mdata[i+1] = mdata[i+2] = 255; mdata[i+3] = 255;
+            }
+        }
         const tcanvas = document.createElement("canvas");
         tcanvas.width = width; tcanvas.height = height;
         tcanvas.getContext("2d").putImageData(maskData, 0, 0);
@@ -640,7 +652,15 @@ function RemoveWatermark() {
         for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
         blob = new Blob([bytes], { type: "image/png" });
       } else {
-        blob = await lib.removeWatermark(src.canvas, sel, method);
+        // blur/fill: process each region sequentially, lib.removeWatermark modifies canvas in-place
+        const workCanvas = document.createElement("canvas");
+        workCanvas.width = src.canvas.width;
+        workCanvas.height = src.canvas.height;
+        workCanvas.getContext("2d").drawImage(src.canvas, 0, 0);
+        for (const sel of sels) {
+          await lib.removeWatermark(workCanvas, sel, method);
+        }
+        blob = await lib.canvasToBlob(workCanvas, "image/png", 0.95);
       }
       if (result) URL.revokeObjectURL(result);
       setResult(URL.createObjectURL(blob));
@@ -648,9 +668,54 @@ function RemoveWatermark() {
     finally { setBusy(false); }
   }
   async function download() {
-    if (!src || !sel) return;
-    const blob = await lib.removeWatermark(src.canvas, sel, method);
-    lib.downloadBlob(blob, `picedit-clean-${Date.now()}.png`);
+    if (!src || sels.length === 0) return;
+    setBusy(true);
+    try {
+      let blob;
+      if (method === "ai") {
+        const NAS_API = "https://rekklelama.iepose.cn";
+        const { width, height } = src.canvas;
+        const maskData = new ImageData(width, height);
+        const mdata = maskData.data;
+        for (const sel of sels) {
+          const { x, y, width: rw, height: rh } = sel;
+          const x0 = Math.max(0, x), y0 = Math.max(0, y);
+          const x1 = Math.min(width, x + rw), y1 = Math.min(height, y + rh);
+          for (let yy = y0; yy < y1; yy++)
+            for (let xx = x0; xx < x1; xx++) {
+              const i = (yy * width + xx) * 4;
+              mdata[i] = mdata[i+1] = mdata[i+2] = 255; mdata[i+3] = 255;
+            }
+        }
+        const tcanvas = document.createElement("canvas");
+        tcanvas.width = width; tcanvas.height = height;
+        tcanvas.getContext("2d").putImageData(maskData, 0, 0);
+        const imgB64 = src.canvas.toDataURL("image/png").split(",")[1];
+        const mskB64 = tcanvas.toDataURL("image/png").split(",")[1];
+        const resp = await fetch(NAS_API + "/inpaint", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: imgB64, mask: mskB64, target_size: 512 }),
+        });
+        if (!resp.ok) throw new Error("NAS API " + resp.status);
+        const resultB64 = await resp.json();
+        const binary = atob(resultB64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        blob = new Blob([bytes], { type: "image/png" });
+      } else {
+        const workCanvas = document.createElement("canvas");
+        workCanvas.width = src.canvas.width;
+        workCanvas.height = src.canvas.height;
+        workCanvas.getContext("2d").drawImage(src.canvas, 0, 0);
+        for (const sel of sels) {
+          await lib.removeWatermark(workCanvas, sel, method);
+        }
+        blob = await lib.canvasToBlob(workCanvas, "image/png", 0.95);
+      }
+      lib.downloadBlob(blob, `picedit-clean-${Date.now()}.png`);
+    } catch (e) { setErr(String(e)); }
+    finally { setBusy(false); }
   }
 
   return html`
@@ -668,12 +733,15 @@ function RemoveWatermark() {
               <p className="text-sm font-medium text-gray-700 mb-2">${t('common.before')}</p>
               <div className="relative inline-block cursor-crosshair" onMouseDown=${onDown} onMouseMove=${onMove} onMouseUp=${onUp} onMouseLeave=${onUp}>
                 <img ref=${imgRef} src=${src.img.dataUrl} alt="" className="block max-w-full max-h-96" />
-                ${(drag || sel) && imgRef.current && (() => {
+                ${(() => {
+                  if (!imgRef.current) return null;
                   const r = imgRef.current.getBoundingClientRect();
-                  const R = drag || sel;
                   const sx = r.width / imgRef.current.naturalWidth;
                   const sy = r.height / imgRef.current.naturalHeight;
-                  return html`<div className="absolute border-2 border-red-500 bg-red-500/10 pointer-events-none" style=${{ left: R.x * sx, top: R.y * sy, width: R.width * sx, height: R.height * sy }}></div>`;
+                  const allRects = drag ? [...sels, drag] : sels;
+                  return allRects.map((R, i) => html`
+                    <div key=${i} className="absolute border-2 ${i === allRects.length - 1 && drag ? 'border-blue-400 bg-blue-400/10' : 'border-red-500 bg-red-500/10'} pointer-events-none"
+                         style=${{ left: R.x * sx, top: R.y * sy, width: R.width * sx, height: R.height * sy }}></div>`);
                 })()}
               </div>
             </div>
@@ -688,17 +756,19 @@ function RemoveWatermark() {
           <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">${t('watermark.method')}</label>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <button onClick=${() => setMethod('blur')} className=${`px-3 py-1.5 rounded-md text-sm ${method === 'blur' ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>${t('watermark.blur')}</button>
                 <button onClick=${() => setMethod('fill')} className=${`px-3 py-1.5 rounded-md text-sm ${method === 'fill' ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>${t('watermark.fill')}</button>
+                <button onClick=${() => setMethod('ai')} className=${`px-3 py-1.5 rounded-md text-sm ${method === 'ai' ? 'bg-accent-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>🤖 AI</button>
               </div>
             </div>
             <div className="flex items-center gap-3 flex-wrap">
-              <${Button} onClick=${process} disabled=${busy || !sel}>${busy ? t('common.processing') : t('common.process')}<//>
+              <${Button} onClick=${process} disabled=${busy || sels.length === 0}>${busy ? t('common.processing') : t('common.process')}<//>
               ${result && html`<${Button} variant="secondary" onClick=${download}>⬇️ ${t('common.download')}<//>`}
-              <${Button} variant="ghost" onClick=${() => setSel(null)}>${t('watermark.clear')}<//>
-              <${Button} variant="ghost" onClick=${() => { setSrc(null); setResult(null); setSel(null); }}>${t('common.reset')}<//>
+              <${Button} variant="ghost" onClick=${() => setSels([])}>${t('watermark.clear')}<//>
+              <${Button} variant="ghost" onClick=${() => { setSrc(null); setResult(null); setSels([]); }}>${t('common.reset')}<//>
             </div>
+            ${sels.length > 0 && html`<p className="text-xs text-gray-500">${sels.length} region${sels.length > 1 ? 's' : ''} selected · Shift+drag to add more</p>`}
             ${err && html`<p className="text-sm text-red-500">${err}</p>`}
           </div>
         </div>`}

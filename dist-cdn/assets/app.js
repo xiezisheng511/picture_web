@@ -1013,23 +1013,44 @@ function RemoveWatermark() {
     if (!src || sels.length === 0) return;
     setBusy(true);
     setErr(null);
-    setStatus("准备中…");
+    setStatus("处理中…");
     setProgress(0);
     try {
-      if (method === "ai" && !window.__lamaReady) {
-        const cdnBase = await getFastestCDN();
-        const modelUrl = "https://xiezisheng511.github.io/picture_web/models/lama_512_int8.onnx";
-        const modelBlob = await fetchWithProgress(modelUrl, setProgress);
-        const blobUrl = URL.createObjectURL(modelBlob);
-        if (!window.ort) {
-          await loadScript(cdnBase + "ort.min.js");
+      let blob;
+      if (method === "ai") {
+        const NAS_API = "https://rekklelama.iepose.cn";
+        const { width, height } = src.canvas;
+        const maskData = new ImageData(width, height);
+        const mdata = maskData.data;
+        for (const { x, y, width: rw, height: rh } of sels) {
+          const x0 = Math.max(0, x), y0 = Math.max(0, y);
+          const x1 = Math.min(width, x + rw), y1 = Math.min(height, y + rh);
+          for (let yy = y0; yy < y1; yy++)
+            for (let xx = x0; xx < x1; xx++) {
+              const i = (yy * width + xx) * 4;
+              mdata[i] = mdata[i+1] = mdata[i+2] = 255; mdata[i+3] = 255;
+            }
         }
-        window.ort.env.wasm.wasmPaths = cdnBase;
-        window.__lamaModelUrl = blobUrl;
-        window.__lamaReady = true;
+        const tcanvas = document.createElement("canvas");
+        tcanvas.width = width; tcanvas.height = height;
+        tcanvas.getContext("2d").putImageData(maskData, 0, 0);
+        const imgB64 = src.canvas.toDataURL("image/png").split(",")[1];
+        const mskB64 = tcanvas.toDataURL("image/png").split(",")[1];
+        setStatus("AI 推理中…");
+        const resp = await fetch(NAS_API + "/inpaint", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: imgB64, mask: mskB64, target_size: 512 }),
+        });
+        if (!resp.ok) throw new Error("NAS API " + resp.status);
+        const resultB64 = await resp.json();
+        const binary = atob(resultB64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        blob = new Blob([bytes], { type: "image/png" });
+      } else {
+        blob = await lib.removeWatermark(src.canvas, sels, method);
       }
-      setStatus("处理中…");
-      const blob = await lib.removeWatermark(src.canvas, sels, method);
       if (result) URL.revokeObjectURL(result);
       setResult(URL.createObjectURL(blob));
       setStatus("");
@@ -1040,8 +1061,7 @@ function RemoveWatermark() {
       setBusy(false);
     }
   }
-
-  async function download() {
+async function download() {
     if (!src || sels.length === 0) return;
     const blob = await lib.removeWatermark(src.canvas, sels, method);
     lib.downloadBlob(blob, "picedit-clean-" + Date.now() + ".png");

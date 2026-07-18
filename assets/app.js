@@ -703,17 +703,7 @@ function RemoveWatermark() {
     return r.height / imgRef.current.naturalHeight;
   };
 
-  const renderBefore = () => {
-    const sx = getSx(), sy = getSy();
-    const overlay = [];
-    sels.forEach((r, i) => {
-      overlay.push(html('<div></div>', {key: i, className: 'absolute border-2 border-red-500 bg-red-500/10 pointer-events-none', style: 'left:' + (r.x * sx) + 'px;top:' + (r.y * sy) + 'px;width:' + (r.width * sx) + 'px;height:' + (r.height * sy) + 'px;'}));
-    });
-    if (drag) {
-      overlay.push(html('<div></div>', {className: 'absolute border-2 border-dashed border-yellow-400 bg-yellow-400/10 pointer-events-none', style: 'left:' + (drag.x * sx) + 'px;top:' + (drag.y * sy) + 'px;width:' + (drag.width * sx) + 'px;height:' + (drag.height * sy) + 'px;'}));
-    }
-    return html('<><img ref=${imgRef} src=${src.img.dataUrl} alt="" className="block max-w-full max-h-96" />${overlay}</>');
-  };
+;
 
   return html`
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
@@ -729,7 +719,9 @@ function RemoveWatermark() {
             <div>
               <p className="text-sm font-medium text-gray-700 mb-2">${t('common.before')}</p>
               <div className="relative inline-block cursor-crosshair" onMouseDown=${onDown} onMouseMove=${onMove} onMouseUp=${onUp} onMouseLeave=${onUp}>
-                ${renderBefore()}
+                <img ref=${imgRef} src=${src.img.dataUrl} alt="" className="block max-w-full max-h-96" />
+                ${sels.map((r, i) => html`<div key=${i} className="absolute border-2 border-red-500 bg-red-500/10 pointer-events-none" style=${"left:" + (r.x * getSx()) + "px;top:" + (r.y * getSy()) + "px;width:" + (r.width * getSx()) + "px;height:" + (r.height * getSy()) + "px;"}></div>`)}
+                ${drag && html`<div className="absolute border-2 border-dashed border-yellow-400 bg-yellow-400/10 pointer-events-none" style=${"left:" + (drag.x * getSx()) + "px;top:" + (drag.y * getSy()) + "px;width:" + (drag.width * getSx()) + "px;height:" + (drag.height * getSy()) + "px;"}></div>`}
               </div>
               ${sels.length > 0 && html`
                 <div className="mt-2 flex flex-wrap gap-1">

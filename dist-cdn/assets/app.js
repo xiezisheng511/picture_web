@@ -1056,7 +1056,7 @@ function RemoveWatermark() {
       setStatus("");
     } catch (e) {
       setErr(String(e));
-      setStatus("失败: " + String(e));
+      setStatus("处理失败: " + String(e));
     } finally {
       setBusy(false);
     }

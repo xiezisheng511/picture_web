@@ -623,6 +623,7 @@ function RemoveWatermark() {
         const NAS_API = "https://rekklelama.iepose.cn";
         console.log('[process] entering AI branch, calling', NAS_API + '/inpaint');
         const { width, height } = src.canvas;
+        console.log('[process] canvas size:', width, 'x', height, 'sels:', JSON.stringify(sels));
         const maskData = new ImageData(width, height);
         const mdata = maskData.data;
         for (const sel of sels) {

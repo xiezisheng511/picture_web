@@ -621,6 +621,7 @@ function RemoveWatermark() {
       let blob;
       if (method === "ai") {
         const NAS_API = "https://rekklelama.iepose.cn";
+        console.log('[process] entering AI branch, calling', NAS_API + '/inpaint');
         const { width, height } = src.canvas;
         const maskData = new ImageData(width, height);
         const mdata = maskData.data;
@@ -639,11 +640,13 @@ function RemoveWatermark() {
         tcanvas.getContext("2d").putImageData(maskData, 0, 0);
         const imgB64 = src.canvas.toDataURL("image/png").split(",")[1];
         const mskB64 = tcanvas.toDataURL("image/png").split(",")[1];
+        console.log('[process] sending request, image size:', imgB64.length, 'mask size:', mskB64.length);
         const resp = await fetch(NAS_API + "/inpaint", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ image: imgB64, mask: mskB64, target_size: 512 }),
         });
+        console.log('[process] response status:', resp.status);
         if (!resp.ok) throw new Error("NAS API " + resp.status);
         const resultB64 = await resp.json();
         const binary = atob(resultB64);

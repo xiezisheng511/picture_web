@@ -586,6 +586,7 @@ function RemoveWatermark() {
 
   const onDown = (e) => {
     if (!imgRef.current) return;
+    e.preventDefault();
     const r = imgRef.current.getBoundingClientRect();
     const sx = imgRef.current.naturalWidth / r.width;
     const sy = imgRef.current.naturalHeight / r.height;
@@ -594,6 +595,7 @@ function RemoveWatermark() {
   };
   const onMove = (e) => {
     if (!start.current || !imgRef.current) return;
+    e.preventDefault();
     const r = imgRef.current.getBoundingClientRect();
     const sx = imgRef.current.naturalWidth / r.width;
     const sy = imgRef.current.naturalHeight / r.height;

@@ -614,7 +614,8 @@ function RemoveWatermark() {
   };
 
   async function process() {
-    if (!src || sels.length === 0) return;
+    console.log('[process]', { method, selsCount: sels.length, hasSrc: !!src });
+    if (!src || sels.length === 0) { console.warn('[process] aborted: no src or no sels'); return; }
     setBusy(true); setErr(null);
     try {
       let blob;

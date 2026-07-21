@@ -649,10 +649,16 @@ function RemoveWatermark() {
         console.log('[process] response status:', resp.status);
         if (!resp.ok) throw new Error("NAS API " + resp.status);
         const resultB64 = await resp.json();
+        console.log('[process] response type:', typeof resultB64, 'preview:', String(resultB64).slice(0,80), 'len:', String(resultB64).length);
+        if (typeof resultB64 !== 'string') {
+          console.error('[process] response is not a string:', resultB64);
+          throw new Error('NAS returned non-string response');
+        }
         const binary = atob(resultB64);
         const bytes = new Uint8Array(binary.length);
         for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
         blob = new Blob([bytes], { type: "image/png" });
+        console.log('[process] blob created, size:', blob.size);
       } else {
         // blur/fill: process each region sequentially, lib.removeWatermark modifies canvas in-place
         const workCanvas = document.createElement("canvas");
@@ -666,7 +672,7 @@ function RemoveWatermark() {
       }
       if (result) URL.revokeObjectURL(result);
       setResult(URL.createObjectURL(blob));
-    } catch (e) { setErr(String(e)); }
+    } catch (e) { console.error('[process] ERROR:', e); setErr(String(e)); }
     finally { setBusy(false); }
   }
   async function download() {

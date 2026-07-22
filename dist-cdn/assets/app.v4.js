@@ -741,7 +741,7 @@ function RemoveWatermark() {
             <div>
               <p className="text-sm font-medium text-gray-700 mb-2">${t('common.before')}</p>
               <div className="relative inline-block cursor-crosshair select-none">
-                <img ref=${imgRef} src=${src.img.dataUrl} alt="" className="block max-w-full max-h-96 pointer-events-none" />
+                <img ref=${imgRef} src=${src.img.dataUrl} alt="" draggable="false" className="block max-w-full max-h-96 pointer-events-none select-none" />
                 <div className="absolute inset-0"
                   onMouseDown=${onDown}
                   onMouseMove=${onMove}

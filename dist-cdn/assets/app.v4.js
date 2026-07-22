@@ -584,17 +584,6 @@ function RemoveWatermark() {
   const imgRef = useRef(null);
   const start = useRef(null);
 
-  // Disable native image drag globally while this component is mounted
-  useEffect(() => {
-    const stopDrag = (e) => { e.preventDefault(); };
-    document.addEventListener('dragstart', stopDrag);
-    document.addEventListener('drag', stopDrag);
-    return () => {
-      document.removeEventListener('dragstart', stopDrag);
-      document.removeEventListener('drag', stopDrag);
-    };
-  }, []);
-
   const onDown = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -753,8 +742,13 @@ function RemoveWatermark() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <p className="text-sm font-medium text-gray-700 mb-2">${t('common.before')}</p>
-              <div className="relative inline-block cursor-crosshair">
-                <img ref=${imgRef} src=${src.img.dataUrl} alt="" draggable="false" onMouseDown=${onDown} onMouseMove=${onMove} onMouseUp=${onUp} onMouseLeave=${onUp} className="block max-w-full max-h-96 select-none" />
+              <div className="relative inline-block cursor-crosshair select-none"
+                onMouseDown=${onDown}
+                onMouseMove=${onMove}
+                onMouseUp=${onUp}
+                onMouseLeave=${onUp}
+                onDragStart=${(e) => e.preventDefault()}>
+                <img ref=${imgRef} src=${src.img.dataUrl} alt="" draggable=${false} className="block max-w-full max-h-96 pointer-events-none" />
                 ${(() => {
                     if (!imgRef.current) return null;
                     const r = imgRef.current.getBoundingClientRect();

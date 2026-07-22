@@ -754,7 +754,7 @@ function RemoveWatermark() {
                     const sy = r.height / imgRef.current.naturalHeight;
                     const allRects = drag ? [...sels, drag] : sels;
                     return allRects.map((R, i) => html`
-                      <div key=${i} className="absolute border-2 ${i === allRects.length - 1 && drag ? 'border-blue-400 bg-blue-400/10' : 'border-red-500 bg-red-500/10'} pointer-events-none"
+                      <div key=${i} className="absolute border-2 ${i === allRects.length - 1 && drag ? 'border-blue-500 bg-blue-500/30' : 'border-red-500 bg-red-500/25'} pointer-events-none"
                            style=${{ left: R.x * sx, top: R.y * sy, width: R.width * sx, height: R.height * sy }}></div>`);
                   })()}
                 </div>

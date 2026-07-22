@@ -584,17 +584,9 @@ function RemoveWatermark() {
   const imgRef = useRef(null);
   const start = useRef(null);
 
-  // Globally kill native img drag while this page is active
-  useEffect(() => {
-    const stop = (e) => { if (e.target.tagName === 'IMG') e.preventDefault(); };
-    document.addEventListener('dragstart', stop);
-    return () => document.removeEventListener('dragstart', stop);
-  }, []);
-
   const onDown = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
     if (!imgRef.current) return;
+    e.preventDefault();
     const r = imgRef.current.getBoundingClientRect();
     const sx = imgRef.current.naturalWidth / r.width;
     const sy = imgRef.current.naturalHeight / r.height;
@@ -749,8 +741,13 @@ function RemoveWatermark() {
             <div>
               <p className="text-sm font-medium text-gray-700 mb-2">${t('common.before')}</p>
               <div className="relative inline-block cursor-crosshair select-none">
-                <img ref=${imgRef} src=${src.img.dataUrl} alt="" draggable="false" className="block max-w-full max-h-96" onMouseDown=${onDown} onMouseMove=${onMove} onMouseUp=${onUp} onMouseLeave=${onUp} />
-                ${(() => {
+                <img ref=${imgRef} src=${src.img.dataUrl} alt="" className="block max-w-full max-h-96 pointer-events-none" />
+                <div className="absolute inset-0"
+                  onMouseDown=${onDown}
+                  onMouseMove=${onMove}
+                  onMouseUp=${onUp}
+                  onMouseLeave=${onUp}>
+                  ${(() => {
                     if (!imgRef.current) return null;
                     const r = imgRef.current.getBoundingClientRect();
                     const sx = r.width / imgRef.current.naturalWidth;
@@ -760,6 +757,7 @@ function RemoveWatermark() {
                       <div key=${i} className="absolute border-2 ${i === allRects.length - 1 && drag ? 'border-blue-400 bg-blue-400/10' : 'border-red-500 bg-red-500/10'} pointer-events-none"
                            style=${{ left: R.x * sx, top: R.y * sy, width: R.width * sx, height: R.height * sy }}></div>`);
                   })()}
+                </div>
               </div>
             </div>
             <div>

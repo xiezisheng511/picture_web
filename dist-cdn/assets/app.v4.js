@@ -755,18 +755,16 @@ function RemoveWatermark() {
               <p className="text-sm font-medium text-gray-700 mb-2">${t('common.before')}</p>
               <div className="relative inline-block cursor-crosshair">
                 <img ref=${imgRef} src=${src.img.dataUrl} alt="" draggable="false" onMouseDown=${onDown} onMouseMove=${onMove} onMouseUp=${onUp} onMouseLeave=${onUp} className="block max-w-full max-h-96 select-none" />
-                <div className="absolute inset-0 pointer-events-none">
-                  ${(() => {
+                ${(() => {
                     if (!imgRef.current) return null;
                     const r = imgRef.current.getBoundingClientRect();
                     const sx = r.width / imgRef.current.naturalWidth;
                     const sy = r.height / imgRef.current.naturalHeight;
                     const allRects = drag ? [...sels, drag] : sels;
                     return allRects.map((R, i) => html`
-                      <div key=${i} className="absolute border-2 ${i === allRects.length - 1 && drag ? 'border-blue-400 bg-blue-400/10' : 'border-red-500 bg-red-500/10'}"
+                      <div key=${i} className="absolute border-2 ${i === allRects.length - 1 && drag ? 'border-blue-400 bg-blue-400/10' : 'border-red-500 bg-red-500/10'} pointer-events-none"
                            style=${{ left: R.x * sx, top: R.y * sy, width: R.width * sx, height: R.height * sy }}></div>`);
                   })()}
-                </div>
               </div>
             </div>
             <div>

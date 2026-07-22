@@ -740,18 +740,20 @@ function RemoveWatermark() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <p className="text-sm font-medium text-gray-700 mb-2">${t('common.before')}</p>
-              <div className="relative inline-block cursor-crosshair" onMouseDown=${onDown} onMouseMove=${onMove} onMouseUp=${onUp} onMouseLeave=${onUp}>
-                <img ref=${imgRef} src=${src.img.dataUrl} alt="" draggable="false" className="block max-w-full max-h-96 select-none" />
-                ${(() => {
-                  if (!imgRef.current) return null;
-                  const r = imgRef.current.getBoundingClientRect();
-                  const sx = r.width / imgRef.current.naturalWidth;
-                  const sy = r.height / imgRef.current.naturalHeight;
-                  const allRects = drag ? [...sels, drag] : sels;
-                  return allRects.map((R, i) => html`
-                    <div key=${i} className="absolute border-2 ${i === allRects.length - 1 && drag ? 'border-blue-400 bg-blue-400/10' : 'border-red-500 bg-red-500/10'} pointer-events-none"
-                         style=${{ left: R.x * sx, top: R.y * sy, width: R.width * sx, height: R.height * sy }}></div>`);
-                })()}
+              <div className="relative inline-block cursor-crosshair">
+                <img ref=${imgRef} src=${src.img.dataUrl} alt="" draggable="false" className="block max-w-full max-h-96 select-none pointer-events-none" />
+                <div className="absolute inset-0" onMouseDown=${onDown} onMouseMove=${onMove} onMouseUp=${onUp} onMouseLeave=${onUp} onDragStart=${(e) => e.preventDefault()}>
+                  ${(() => {
+                    if (!imgRef.current) return null;
+                    const r = imgRef.current.getBoundingClientRect();
+                    const sx = r.width / imgRef.current.naturalWidth;
+                    const sy = r.height / imgRef.current.naturalHeight;
+                    const allRects = drag ? [...sels, drag] : sels;
+                    return allRects.map((R, i) => html`
+                      <div key=${i} className="absolute border-2 ${i === allRects.length - 1 && drag ? 'border-blue-400 bg-blue-400/10' : 'border-red-500 bg-red-500/10'} pointer-events-none"
+                           style=${{ left: R.x * sx, top: R.y * sy, width: R.width * sx, height: R.height * sy }}></div>`);
+                  })()}
+                </div>
               </div>
             </div>
             <div>

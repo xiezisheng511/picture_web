@@ -584,6 +584,17 @@ function RemoveWatermark() {
   const imgRef = useRef(null);
   const start = useRef(null);
 
+  // Disable native image drag globally while this component is mounted
+  useEffect(() => {
+    const stopDrag = (e) => { e.preventDefault(); };
+    document.addEventListener('dragstart', stopDrag);
+    document.addEventListener('drag', stopDrag);
+    return () => {
+      document.removeEventListener('dragstart', stopDrag);
+      document.removeEventListener('drag', stopDrag);
+    };
+  }, []);
+
   const onDown = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -594,11 +605,8 @@ function RemoveWatermark() {
     const sy = imgRef.current.naturalHeight / r.height;
     start.current = { x: (e.clientX - r.left) * sx, y: (e.clientY - r.top) * sy, shiftKey: e.shiftKey };
     setDrag(null);
-    // Use window-level events so img doesn't drag itself
-    window.addEventListener('mousemove', onWindowMove);
-    window.addEventListener('mouseup', onWindowUp);
   };
-  const onWindowMove = (e) => {
+  const onMove = (e) => {
     if (!start.current || !imgRef.current) return;
     e.preventDefault();
     const r = imgRef.current.getBoundingClientRect();
@@ -607,7 +615,7 @@ function RemoveWatermark() {
     const cur = { x: (e.clientX - r.left) * sx, y: (e.clientY - r.top) * sy };
     setDrag({ x: Math.min(start.current.x, cur.x), y: Math.min(start.current.y, cur.y), width: Math.abs(cur.x - start.current.x), height: Math.abs(cur.y - start.current.y) });
   };
-  const onWindowUp = () => {
+  const onUp = () => {
     if (drag && drag.width > 4 && drag.height > 4) {
       if (start.current && start.current.shiftKey) {
         setSels(prev => [...prev, drag]);
@@ -616,8 +624,6 @@ function RemoveWatermark() {
       }
     }
     start.current = null;
-    window.removeEventListener('mousemove', onWindowMove);
-    window.removeEventListener('mouseup', onWindowUp);
   };
 
   async function process() {
@@ -748,7 +754,7 @@ function RemoveWatermark() {
             <div>
               <p className="text-sm font-medium text-gray-700 mb-2">${t('common.before')}</p>
               <div className="relative inline-block cursor-crosshair">
-                <img ref=${imgRef} src=${src.img.dataUrl} alt="" draggable="false" onMouseDown=${onDown} onDragStart=${(e) => e.preventDefault()} className="block max-w-full max-h-96 select-none" />
+                <img ref=${imgRef} src=${src.img.dataUrl} alt="" draggable="false" onMouseDown=${onDown} onMouseMove=${onMove} onMouseUp=${onUp} onMouseLeave=${onUp} className="block max-w-full max-h-96 select-none" />
                 <div className="absolute inset-0 pointer-events-none">
                   ${(() => {
                     if (!imgRef.current) return null;

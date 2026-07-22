@@ -584,6 +584,13 @@ function RemoveWatermark() {
   const imgRef = useRef(null);
   const start = useRef(null);
 
+  // Globally kill native img drag while this page is active
+  useEffect(() => {
+    const stop = (e) => { if (e.target.tagName === 'IMG') e.preventDefault(); };
+    document.addEventListener('dragstart', stop);
+    return () => document.removeEventListener('dragstart', stop);
+  }, []);
+
   const onDown = (e) => {
     e.preventDefault();
     e.stopPropagation();

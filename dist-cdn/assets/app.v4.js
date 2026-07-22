@@ -586,23 +586,28 @@ function RemoveWatermark() {
 
   const onDown = (e) => {
     e.preventDefault();
+    e.stopPropagation();
     if (!imgRef.current) return;
     const r = imgRef.current.getBoundingClientRect();
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) return;
     const sx = imgRef.current.naturalWidth / r.width;
     const sy = imgRef.current.naturalHeight / r.height;
     start.current = { x: (e.clientX - r.left) * sx, y: (e.clientY - r.top) * sy, shiftKey: e.shiftKey };
     setDrag(null);
+    // Use window-level events so img doesn't drag itself
+    window.addEventListener('mousemove', onWindowMove);
+    window.addEventListener('mouseup', onWindowUp);
   };
-  const onMove = (e) => {
-    e.preventDefault();
+  const onWindowMove = (e) => {
     if (!start.current || !imgRef.current) return;
+    e.preventDefault();
     const r = imgRef.current.getBoundingClientRect();
     const sx = imgRef.current.naturalWidth / r.width;
     const sy = imgRef.current.naturalHeight / r.height;
     const cur = { x: (e.clientX - r.left) * sx, y: (e.clientY - r.top) * sy };
     setDrag({ x: Math.min(start.current.x, cur.x), y: Math.min(start.current.y, cur.y), width: Math.abs(cur.x - start.current.x), height: Math.abs(cur.y - start.current.y) });
   };
-  const onUp = () => {
+  const onWindowUp = () => {
     if (drag && drag.width > 4 && drag.height > 4) {
       if (start.current && start.current.shiftKey) {
         setSels(prev => [...prev, drag]);
@@ -611,6 +616,8 @@ function RemoveWatermark() {
       }
     }
     start.current = null;
+    window.removeEventListener('mousemove', onWindowMove);
+    window.removeEventListener('mouseup', onWindowUp);
   };
 
   async function process() {
@@ -741,8 +748,8 @@ function RemoveWatermark() {
             <div>
               <p className="text-sm font-medium text-gray-700 mb-2">${t('common.before')}</p>
               <div className="relative inline-block cursor-crosshair">
-                <img ref=${imgRef} src=${src.img.dataUrl} alt="" draggable="false" className="block max-w-full max-h-96 select-none" />
-                <div className="absolute inset-0 touch-none select-none" onMouseDown=${onDown} onMouseMove=${onMove} onMouseUp=${onUp} onMouseLeave=${onUp} onDragStart=${(e) => e.preventDefault()}>
+                <img ref=${imgRef} src=${src.img.dataUrl} alt="" draggable="false" onMouseDown=${onDown} onDragStart=${(e) => e.preventDefault()} className="block max-w-full max-h-96 select-none" />
+                <div className="absolute inset-0 pointer-events-none">
                   ${(() => {
                     if (!imgRef.current) return null;
                     const r = imgRef.current.getBoundingClientRect();
@@ -750,7 +757,7 @@ function RemoveWatermark() {
                     const sy = r.height / imgRef.current.naturalHeight;
                     const allRects = drag ? [...sels, drag] : sels;
                     return allRects.map((R, i) => html`
-                      <div key=${i} className="absolute border-2 ${i === allRects.length - 1 && drag ? 'border-blue-400 bg-blue-400/10' : 'border-red-500 bg-red-500/10'} pointer-events-none"
+                      <div key=${i} className="absolute border-2 ${i === allRects.length - 1 && drag ? 'border-blue-400 bg-blue-400/10' : 'border-red-500 bg-red-500/10'}"
                            style=${{ left: R.x * sx, top: R.y * sy, width: R.width * sx, height: R.height * sy }}></div>`);
                   })()}
                 </div>

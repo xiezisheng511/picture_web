@@ -1,7 +1,8 @@
 {
   "site": {
     "name": "PicEdit",
-    "tagline": "Free browser-based photo editor"
+    "tagline": "Free browser-based photo editor",
+    "taglineEn": "Free browser-based photo editor"
   },
   "nav": {
     "home": "Home",
@@ -58,8 +59,10 @@
     "result": "Result",
     "before": "Original",
     "after": "Result",
+    "or": "or",
     "format": "Format",
-    "quality": "Quality"
+    "quality": "Quality",
+    "color": "Color"
   },
   "bgColor": {
     "presets": "Preset colors",
@@ -77,8 +80,7 @@
     "method": "Inpaint method",
     "blur": "Blur",
     "fill": "Fill",
-    "inpaint": "Smart inpaint",
-    "ai": "AI Inpaint"
+    "inpaint": "Smart inpaint"
   },
   "edit": {
     "crop": "Crop",
@@ -94,7 +96,8 @@
   },
   "aiCutout": {
     "apiKeyMissing": "Please configure your remove.bg API key (contact the site owner)",
-    "processing": "Uploading to AI service…"
+    "processing": "Uploading to AI service…",
+    "result": "Generated transparent cutout. You can apply a new background."
   },
   "footer": {
     "copyright": "© 2026 PicEdit. All rights reserved.",

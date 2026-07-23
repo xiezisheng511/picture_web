@@ -1,7 +1,8 @@
 {
   "site": {
     "name": "PicEdit",
-    "tagline": "免费的浏览器图片处理工具"
+    "tagline": "免费的浏览器图片处理工具",
+    "taglineEn": "Free browser-based photo editor"
   },
   "nav": {
     "home": "首页",
@@ -58,8 +59,10 @@
     "result": "处理结果",
     "before": "原图",
     "after": "效果",
+    "or": "或",
     "format": "格式",
-    "quality": "质量"
+    "quality": "质量",
+    "color": "颜色"
   },
   "bgColor": {
     "presets": "预设颜色",
@@ -77,8 +80,7 @@
     "method": "修复方式",
     "blur": "模糊",
     "fill": "填充",
-    "inpaint": "智能修复",
-    "ai": "AI 修复"
+    "inpaint": "智能修复"
   },
   "edit": {
     "crop": "裁剪",
@@ -94,7 +96,8 @@
   },
   "aiCutout": {
     "apiKeyMissing": "请配置 remove.bg API Key（联系站长获取）",
-    "processing": "正在上传到 AI 服务…"
+    "processing": "正在上传到 AI 服务…",
+    "result": "已生成透明背景图，可叠加新底色"
   },
   "footer": {
     "copyright": "© 2026 PicEdit. 保留所有权利。",

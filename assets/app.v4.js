@@ -624,53 +624,23 @@ function RemoveWatermark() {
         console.log('[process] entering AI branch, calling', NAS_API + '/inpaint');
         const { width, height } = src.canvas;
         console.log('[process] canvas size:', width, 'x', height, 'sels:', JSON.stringify(sels));
-
-        // 1. Compute bbox of all sels + 64px padding
-        let minX = width, minY = height, maxX = 0, maxY = 0;
-        for (const sel of sels) {
-          minX = Math.min(minX, sel.x);
-          minY = Math.min(minY, sel.y);
-          maxX = Math.max(maxX, sel.x + sel.width);
-          maxY = Math.max(maxY, sel.y + sel.height);
-        }
-        const pad = 64;
-        minX = Math.max(0, Math.floor(minX - pad));
-        minY = Math.max(0, Math.floor(minY - pad));
-        maxX = Math.min(width, Math.ceil(maxX + pad));
-        maxY = Math.min(height, Math.ceil(maxY + pad));
-        const cropW = maxX - minX;
-        const cropH = maxY - minY;
-        console.log('[process] crop bbox:', { minX, minY, cropW, cropH });
-
-        // 2. Build full-size mask (only sels marked)
         const maskData = new ImageData(width, height);
         const mdata = maskData.data;
         for (const sel of sels) {
-          const x0 = Math.max(0, sel.x), y0 = Math.max(0, sel.y);
-          const x1 = Math.min(width, sel.x + sel.width), y1 = Math.min(height, sel.y + sel.height);
-          for (let yy = Math.floor(y0); yy < Math.ceil(y1); yy++)
-            for (let xx = Math.floor(x0); xx < Math.ceil(x1); xx++) {
+          const { x, y, width: rw, height: rh } = sel;
+          const x0 = Math.max(0, x), y0 = Math.max(0, y);
+          const x1 = Math.min(width, x + rw), y1 = Math.min(height, y + rh);
+          for (let yy = y0; yy < y1; yy++)
+            for (let xx = x0; xx < x1; xx++) {
               const i = (yy * width + xx) * 4;
               mdata[i] = mdata[i+1] = mdata[i+2] = 255; mdata[i+3] = 255;
             }
         }
-
-        // 3. Crop both image and mask to bbox
-        const tImg = document.createElement("canvas");
-        tImg.width = cropW; tImg.height = cropH;
-        tImg.getContext("2d").drawImage(src.canvas, -minX, -minY);
-
-        const tMask = document.createElement("canvas");
-        tMask.width = cropW; tMask.height = cropH;
-        tMask.getContext("2d").putImageData(new ImageData(new Uint8ClampedArray(mdata.buffer, minY * width * 4, cropH * width * 4), width, height), -minX, 0);
-        // Wait, simpler: draw mask via 2d context
-        const maskCanvas = document.createElement("canvas");
-        maskCanvas.width = width; maskCanvas.height = height;
-        maskCanvas.getContext("2d").putImageData(maskData, 0, 0);
-        tMask.getContext("2d").drawImage(maskCanvas, -minX, -minY);
-
-        const imgB64 = tImg.toDataURL("image/png").split(",")[1];
-        const mskB64 = tMask.toDataURL("image/png").split(",")[1];
+        const tcanvas = document.createElement("canvas");
+        tcanvas.width = width; tcanvas.height = height;
+        tcanvas.getContext("2d").putImageData(maskData, 0, 0);
+        const imgB64 = src.canvas.toDataURL("image/png").split(",")[1];
+        const mskB64 = tcanvas.toDataURL("image/png").split(",")[1];
         console.log('[process] sending request, image size:', imgB64.length, 'mask size:', mskB64.length);
         const resp = await fetch(NAS_API + "/inpaint", {
           method: "POST",
@@ -688,19 +658,8 @@ function RemoveWatermark() {
         const binary = atob(resultB64);
         const bytes = new Uint8Array(binary.length);
         for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-
-        // 4. Decode result image and paste cropped result back into original canvas
-        const resultBlob = new Blob([bytes], { type: "image/png" });
-        const resultImg = new Image();
-        await new Promise((res, rej) => { resultImg.onload = res; resultImg.onerror = rej; resultImg.src = URL.createObjectURL(resultBlob); });
-        URL.revokeObjectURL(resultImg.src);
-        const finalCanvas = document.createElement("canvas");
-        finalCanvas.width = width; finalCanvas.height = height;
-        finalCanvas.getContext("2d").drawImage(src.canvas, 0, 0);
-        finalCanvas.getContext("2d").drawImage(resultImg, minX, minY, cropW, cropH);
-
-        blob = await new Promise(res => finalCanvas.toBlob(res, "image/png", 0.95));
-        console.log('[process] final blob size:', blob.size);
+        blob = new Blob([bytes], { type: "image/png" });
+        console.log('[process] blob created, size:', blob.size);
       } else {
         // blur/fill: process each region sequentially, lib.removeWatermark modifies canvas in-place
         const workCanvas = document.createElement("canvas");

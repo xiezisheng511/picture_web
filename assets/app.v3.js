@@ -575,7 +575,7 @@ function BgColor() {
 function RemoveWatermark() {
   const { t } = useT();
   const [src, setSrc] = useState(null);
-  const [sels, setSels] = useState([]);
+  const [sel, setSel] = useState(null);
   const [drag, setDrag] = useState(null);
   const [method, setMethod] = useState('blur');
   const [result, setResult] = useState(null);
@@ -586,16 +586,14 @@ function RemoveWatermark() {
 
   const onDown = (e) => {
     if (!imgRef.current) return;
-    e.preventDefault();
     const r = imgRef.current.getBoundingClientRect();
     const sx = imgRef.current.naturalWidth / r.width;
     const sy = imgRef.current.naturalHeight / r.height;
-    start.current = { x: (e.clientX - r.left) * sx, y: (e.clientY - r.top) * sy, shiftKey: e.shiftKey };
+    start.current = { x: (e.clientX - r.left) * sx, y: (e.clientY - r.top) * sy };
     setDrag(null);
   };
   const onMove = (e) => {
     if (!start.current || !imgRef.current) return;
-    e.preventDefault();
     const r = imgRef.current.getBoundingClientRect();
     const sx = imgRef.current.naturalWidth / r.width;
     const sy = imgRef.current.naturalHeight / r.height;
@@ -603,140 +601,28 @@ function RemoveWatermark() {
     setDrag({ x: Math.min(start.current.x, cur.x), y: Math.min(start.current.y, cur.y), width: Math.abs(cur.x - start.current.x), height: Math.abs(cur.y - start.current.y) });
   };
   const onUp = () => {
-    if (drag && drag.width > 4 && drag.height > 4) {
-      if (start.current && start.current.shiftKey) {
-        setSels(prev => [...prev, drag]);
-      } else {
-        setSels([drag]);
-      }
-    }
+    if (drag && drag.width > 4 && drag.height > 4) setSel(drag);
     start.current = null;
   };
 
   async function process() {
-    console.log('[process]', { method, selsCount: sels.length, hasSrc: !!src });
-    if (!src || sels.length === 0) { console.warn('[process] aborted: no src or no sels'); return; }
+    if (!src || !sel) return;
     setBusy(true); setErr(null);
     try {
       let blob;
       if (method === "ai") {
         const NAS_API = "https://rekklelama.iepose.cn";
-        console.log('[process] entering AI branch, calling', NAS_API + '/inpaint');
-        const { width, height } = src.canvas;
-        console.log('[process] canvas size:', width, 'x', height, 'sels:', JSON.stringify(sels));
-
-        // 1. Compute bbox of all sels + 64px padding
-        let minX = width, minY = height, maxX = 0, maxY = 0;
-        for (const sel of sels) {
-          minX = Math.min(minX, sel.x);
-          minY = Math.min(minY, sel.y);
-          maxX = Math.max(maxX, sel.x + sel.width);
-          maxY = Math.max(maxY, sel.y + sel.height);
-        }
-        const pad = 64;
-        minX = Math.max(0, Math.floor(minX - pad));
-        minY = Math.max(0, Math.floor(minY - pad));
-        maxX = Math.min(width, Math.ceil(maxX + pad));
-        maxY = Math.min(height, Math.ceil(maxY + pad));
-        const cropW = maxX - minX;
-        const cropH = maxY - minY;
-        console.log('[process] crop bbox:', { minX, minY, cropW, cropH });
-
-        // 2. Build full-size mask (only sels marked)
-        const maskData = new ImageData(width, height);
-        const mdata = maskData.data;
-        for (const sel of sels) {
-          const x0 = Math.max(0, sel.x), y0 = Math.max(0, sel.y);
-          const x1 = Math.min(width, sel.x + sel.width), y1 = Math.min(height, sel.y + sel.height);
-          for (let yy = Math.floor(y0); yy < Math.ceil(y1); yy++)
-            for (let xx = Math.floor(x0); xx < Math.ceil(x1); xx++) {
-              const i = (yy * width + xx) * 4;
-              mdata[i] = mdata[i+1] = mdata[i+2] = 255; mdata[i+3] = 255;
-            }
-        }
-
-        // 3. Crop both image and mask to bbox
-        const tImg = document.createElement("canvas");
-        tImg.width = cropW; tImg.height = cropH;
-        tImg.getContext("2d").drawImage(src.canvas, -minX, -minY);
-
-        const tMask = document.createElement("canvas");
-        tMask.width = cropW; tMask.height = cropH;
-        tMask.getContext("2d").putImageData(new ImageData(new Uint8ClampedArray(mdata.buffer, minY * width * 4, cropH * width * 4), width, height), -minX, 0);
-        // Wait, simpler: draw mask via 2d context
-        const maskCanvas = document.createElement("canvas");
-        maskCanvas.width = width; maskCanvas.height = height;
-        maskCanvas.getContext("2d").putImageData(maskData, 0, 0);
-        tMask.getContext("2d").drawImage(maskCanvas, -minX, -minY);
-
-        const imgB64 = tImg.toDataURL("image/png").split(",")[1];
-        const mskB64 = tMask.toDataURL("image/png").split(",")[1];
-        console.log('[process] sending request, image size:', imgB64.length, 'mask size:', mskB64.length);
-        const resp = await fetch(NAS_API + "/inpaint", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ image: imgB64, mask: mskB64, target_size: 512 }),
-        });
-        console.log('[process] response status:', resp.status);
-        if (!resp.ok) throw new Error("NAS API " + resp.status);
-        const resultB64 = await resp.json();
-        console.log('[process] response type:', typeof resultB64, 'preview:', String(resultB64).slice(0,80), 'len:', String(resultB64).length);
-        if (typeof resultB64 !== 'string') {
-          console.error('[process] response is not a string:', resultB64);
-          throw new Error('NAS returned non-string response');
-        }
-        const binary = atob(resultB64);
-        const bytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-
-        // 4. Decode result image and paste cropped result back into original canvas
-        const resultBlob = new Blob([bytes], { type: "image/png" });
-        const resultImg = new Image();
-        await new Promise((res, rej) => { resultImg.onload = res; resultImg.onerror = rej; resultImg.src = URL.createObjectURL(resultBlob); });
-        URL.revokeObjectURL(resultImg.src);
-        const finalCanvas = document.createElement("canvas");
-        finalCanvas.width = width; finalCanvas.height = height;
-        finalCanvas.getContext("2d").drawImage(src.canvas, 0, 0);
-        finalCanvas.getContext("2d").drawImage(resultImg, minX, minY, cropW, cropH);
-
-        blob = await new Promise(res => finalCanvas.toBlob(res, "image/png", 0.95));
-        console.log('[process] final blob size:', blob.size);
-      } else {
-        // blur/fill: process each region sequentially, lib.removeWatermark modifies canvas in-place
-        const workCanvas = document.createElement("canvas");
-        workCanvas.width = src.canvas.width;
-        workCanvas.height = src.canvas.height;
-        workCanvas.getContext("2d").drawImage(src.canvas, 0, 0);
-        for (const sel of sels) {
-          await lib.removeWatermark(workCanvas, sel, method);
-        }
-        blob = await lib.canvasToBlob(workCanvas, "image/png", 0.95);
-      }
-      if (result) URL.revokeObjectURL(result);
-      setResult(URL.createObjectURL(blob));
-    } catch (e) { console.error('[process] ERROR:', e); setErr(String(e)); }
-    finally { setBusy(false); }
-  }
-  async function download() {
-    if (!src || sels.length === 0) return;
-    setBusy(true);
-    try {
-      let blob;
-      if (method === "ai") {
-        const NAS_API = "https://rekklelama.iepose.cn";
         const { width, height } = src.canvas;
         const maskData = new ImageData(width, height);
         const mdata = maskData.data;
-        for (const sel of sels) {
-          const { x, y, width: rw, height: rh } = sel;
-          const x0 = Math.max(0, x), y0 = Math.max(0, y);
-          const x1 = Math.min(width, x + rw), y1 = Math.min(height, y + rh);
-          for (let yy = y0; yy < y1; yy++)
-            for (let xx = x0; xx < x1; xx++) {
-              const i = (yy * width + xx) * 4;
-              mdata[i] = mdata[i+1] = mdata[i+2] = 255; mdata[i+3] = 255;
-            }
-        }
+        const { x, y, width: rw, height: rh } = sel;
+        const x0 = Math.max(0, x), y0 = Math.max(0, y);
+        const x1 = Math.min(width, x + rw), y1 = Math.min(height, y + rh);
+        for (let yy = y0; yy < y1; yy++)
+          for (let xx = x0; xx < x1; xx++) {
+            const i = (yy * width + xx) * 4;
+            mdata[i] = mdata[i+1] = mdata[i+2] = 255; mdata[i+3] = 255;
+          }
         const tcanvas = document.createElement("canvas");
         tcanvas.width = width; tcanvas.height = height;
         tcanvas.getContext("2d").putImageData(maskData, 0, 0);
@@ -754,18 +640,17 @@ function RemoveWatermark() {
         for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
         blob = new Blob([bytes], { type: "image/png" });
       } else {
-        const workCanvas = document.createElement("canvas");
-        workCanvas.width = src.canvas.width;
-        workCanvas.height = src.canvas.height;
-        workCanvas.getContext("2d").drawImage(src.canvas, 0, 0);
-        for (const sel of sels) {
-          await lib.removeWatermark(workCanvas, sel, method);
-        }
-        blob = await lib.canvasToBlob(workCanvas, "image/png", 0.95);
+        blob = await lib.removeWatermark(src.canvas, sel, method);
       }
-      lib.downloadBlob(blob, `picedit-clean-${Date.now()}.png`);
+      if (result) URL.revokeObjectURL(result);
+      setResult(URL.createObjectURL(blob));
     } catch (e) { setErr(String(e)); }
     finally { setBusy(false); }
+  }
+  async function download() {
+    if (!src || !sel) return;
+    const blob = await lib.removeWatermark(src.canvas, sel, method);
+    lib.downloadBlob(blob, `picedit-clean-${Date.now()}.png`);
   }
 
   return html`
@@ -781,24 +666,15 @@ function RemoveWatermark() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <p className="text-sm font-medium text-gray-700 mb-2">${t('common.before')}</p>
-              <div className="relative inline-block cursor-crosshair select-none">
-                <img ref=${imgRef} src=${src.img.dataUrl} alt="" draggable="false" className="block max-w-full max-h-96 pointer-events-none select-none" />
-                <div className="absolute inset-0"
-                  onMouseDown=${onDown}
-                  onMouseMove=${onMove}
-                  onMouseUp=${onUp}
-                  onMouseLeave=${onUp}>
-                  ${(() => {
-                    if (!imgRef.current) return null;
-                    const r = imgRef.current.getBoundingClientRect();
-                    const sx = r.width / imgRef.current.naturalWidth;
-                    const sy = r.height / imgRef.current.naturalHeight;
-                    const allRects = drag ? [...sels, drag] : sels;
-                    return allRects.map((R, i) => html`
-                      <div key=${i} className="absolute border-2 ${i === allRects.length - 1 && drag ? 'border-blue-500 bg-blue-500/30' : 'border-red-500 bg-red-500/25'} pointer-events-none"
-                           style=${{ left: R.x * sx, top: R.y * sy, width: R.width * sx, height: R.height * sy }}></div>`);
-                  })()}
-                </div>
+              <div className="relative inline-block cursor-crosshair" onMouseDown=${onDown} onMouseMove=${onMove} onMouseUp=${onUp} onMouseLeave=${onUp}>
+                <img ref=${imgRef} src=${src.img.dataUrl} alt="" className="block max-w-full max-h-96" />
+                ${(drag || sel) && imgRef.current && (() => {
+                  const r = imgRef.current.getBoundingClientRect();
+                  const R = drag || sel;
+                  const sx = r.width / imgRef.current.naturalWidth;
+                  const sy = r.height / imgRef.current.naturalHeight;
+                  return html`<div className="absolute border-2 border-red-500 bg-red-500/10 pointer-events-none" style=${{ left: R.x * sx, top: R.y * sy, width: R.width * sx, height: R.height * sy }}></div>`;
+                })()}
               </div>
             </div>
             <div>
@@ -812,19 +688,17 @@ function RemoveWatermark() {
           <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">${t('watermark.method')}</label>
-              <div className="flex gap-2 flex-wrap">
+              <div className="flex gap-2">
                 <button onClick=${() => setMethod('blur')} className=${`px-3 py-1.5 rounded-md text-sm ${method === 'blur' ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>${t('watermark.blur')}</button>
                 <button onClick=${() => setMethod('fill')} className=${`px-3 py-1.5 rounded-md text-sm ${method === 'fill' ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>${t('watermark.fill')}</button>
-                <button onClick=${() => setMethod('ai')} className=${`px-3 py-1.5 rounded-md text-sm ${method === 'ai' ? 'bg-accent-500 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>🤖 AI</button>
               </div>
             </div>
             <div className="flex items-center gap-3 flex-wrap">
-              <${Button} onClick=${process} disabled=${busy || sels.length === 0}>${busy ? t('common.processing') : t('common.process')}<//>
+              <${Button} onClick=${process} disabled=${busy || !sel}>${busy ? t('common.processing') : t('common.process')}<//>
               ${result && html`<${Button} variant="secondary" onClick=${download}>⬇️ ${t('common.download')}<//>`}
-              <${Button} variant="ghost" onClick=${() => setSels([])}>${t('watermark.clear')}<//>
-              <${Button} variant="ghost" onClick=${() => { setSrc(null); setResult(null); setSels([]); }}>${t('common.reset')}<//>
+              <${Button} variant="ghost" onClick=${() => setSel(null)}>${t('watermark.clear')}<//>
+              <${Button} variant="ghost" onClick=${() => { setSrc(null); setResult(null); setSel(null); }}>${t('common.reset')}<//>
             </div>
-            ${sels.length > 0 && html`<p className="text-xs text-gray-500">${sels.length} region${sels.length > 1 ? 's' : ''} selected · Shift+drag to add more</p>`}
             ${err && html`<p className="text-sm text-red-500">${err}</p>`}
           </div>
         </div>`}

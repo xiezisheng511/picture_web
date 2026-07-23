@@ -641,6 +641,20 @@ function RemoveWatermark() {
         tcanvas.getContext("2d").putImageData(maskData, 0, 0);
         const imgB64 = src.canvas.toDataURL("image/png").split(",")[1];
         const mskB64 = tcanvas.toDataURL("image/png").split(",")[1];
+        // Count mask white pixels from the actual canvas
+        const maskCanvas = document.createElement("canvas");
+        maskCanvas.width = width; maskCanvas.height = height;
+        maskCanvas.getContext("2d").putImageData(maskData, 0, 0);
+        const maskImg = new Image();
+        let maskWhiteCount = 0;
+        maskImg.onload = () => {
+          const mc = maskCanvas.getContext("2d");
+          const idata = mc.getImageData(0, 0, width, height);
+          for (let i = 0; i < idata.data.length; i += 4) {
+            if (idata.data[i] > 200) maskWhiteCount++;
+          }
+          console.log("[DEBUG] mask white count from actual canvas:", maskWhiteCount, "of", width * height);
+        };
         console.log('[process] sending request, image size:', imgB64.length, 'mask size:', mskB64.length);
         const resp = await fetch(NAS_API + "/inpaint", {
           method: "POST",

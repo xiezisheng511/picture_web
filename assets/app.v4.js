@@ -626,6 +626,7 @@ function RemoveWatermark() {
         console.log('[process] canvas size:', width, 'x', height, 'sels:', JSON.stringify(sels));
         const maskData = new ImageData(width, height);
         const mdata = maskData.data;
+        console.log("[MASK] maskData.size=" + maskData.width + "x" + maskData.height + " mdata.len=" + mdata.length + " expected=" + (width*height*4));
         for (const sel of sels) {
           const { x, y, width: rw, height: rh } = sel;
           const x0 = Math.max(0, x), y0 = Math.max(0, y);
@@ -649,6 +650,8 @@ function RemoveWatermark() {
           else if (idata.data[i] > 200) whitePx++;
         }
         console.log("[MASK] ImageData: " + idata.width + "x" + idata.height + " white=" + whitePx + " alpha0=" + alphaPx);
+        // CRITICAL: verify canvas dimensions
+        console.log("[MASK] canvas check: width=" + width + " height=" + height + " canvas.w=" + src.canvas.width + " canvas.h=" + src.canvas.height);
         const mc = tcanvas.getContext("2d");
         const idata2 = mc.getImageData(0, 0, width, height);
         let white2 = 0, alpha02 = 0;
@@ -705,6 +708,7 @@ function RemoveWatermark() {
         const { width, height } = src.canvas;
         const maskData = new ImageData(width, height);
         const mdata = maskData.data;
+        console.log("[MASK] maskData.size=" + maskData.width + "x" + maskData.height + " mdata.len=" + mdata.length + " expected=" + (width*height*4));
         for (const sel of sels) {
           const { x, y, width: rw, height: rh } = sel;
           const x0 = Math.max(0, x), y0 = Math.max(0, y);

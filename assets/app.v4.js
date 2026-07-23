@@ -624,34 +624,32 @@ function RemoveWatermark() {
         console.log('[process] entering AI branch, calling', NAS_API + '/inpaint');
         const { width, height } = src.canvas;
         console.log('[process] canvas size:', width, 'x', height, 'sels:', JSON.stringify(sels));
-        const maskData = new ImageData(width, height);
-        const mdata = maskData.data;
-        console.log("[MASK] maskData.size=" + maskData.width + "x" + maskData.height + " mdata.len=" + mdata.length + " expected=" + (width*height*4));
+        // Build mask using fillRect - create black canvas, draw white rects per selection
+        const tcanvas = document.createElement("canvas");
+        tcanvas.width = width; tcanvas.height = height;
+        const tctx = tcanvas.getContext("2d");
+        tctx.fillStyle = "black";
+        tctx.fillRect(0, 0, width, height);
+        let totalFilled = 0;
         for (const sel of sels) {
           const { x, y, width: rw, height: rh } = sel;
           const x0 = Math.max(0, x), y0 = Math.max(0, y);
           const x1 = Math.min(width, x + rw), y1 = Math.min(height, y + rh);
-          for (let yy = y0; yy < y1; yy++)
-            for (let xx = x0; xx < x1; xx++) {
-              const i = (yy * width + xx) * 4;
-              mdata[i] = mdata[i+1] = mdata[i+2] = 255; mdata[i+3] = 255;
-            }
+          const fw = x1 - x0, fh = y1 - y0;
+          if (fw > 0 && fh > 0) {
+            tctx.fillStyle = "white";
+            tctx.fillRect(x0, y0, fw, fh);
+            totalFilled += fw * fh;
+          }
         }
-        const tcanvas = document.createElement("canvas");
-        tcanvas.width = width; tcanvas.height = height;
-        tcanvas.getContext("2d").putImageData(maskData, 0, 0);
+        console.log("[MASK] fillRect total pixels filled: " + totalFilled);
+        // Verify mask by reading back a sample
+        const sampleY = Math.floor(height / 2), sampleX = Math.floor(width / 2);
+        const samplePixel = tctx.getImageData(sampleX, sampleY, 1, 1).data;
+        console.log("[MASK] center pixel rgba(" + samplePixel[0] + "," + samplePixel[1] + "," + samplePixel[2] + "," + samplePixel[3] + ")");
         const imgB64 = src.canvas.toDataURL("image/png").split(",")[1];
         const mskB64 = tcanvas.toDataURL("image/png").split(",")[1];
-        // Mask debug
-        const idata = maskData;
-        let whitePx = 0, alphaPx = 0;
-        for (let i = 0; i < idata.data.length; i += 4) {
-          if (idata.data[i+3] === 0) alphaPx++;
-          else if (idata.data[i] > 200) whitePx++;
-        }
-        console.log("[MASK] ImageData: " + idata.width + "x" + idata.height + " white=" + whitePx + " alpha0=" + alphaPx);
-        // CRITICAL: verify canvas dimensions
-        console.log("[MASK] canvas check: width=" + width + " height=" + height + " canvas.w=" + src.canvas.width + " canvas.h=" + src.canvas.height);
+        // Verify mask: read back pixels from tcanvas
         const mc = tcanvas.getContext("2d");
         const idata2 = mc.getImageData(0, 0, width, height);
         let white2 = 0, alpha02 = 0;
@@ -659,7 +657,7 @@ function RemoveWatermark() {
           if (idata2.data[i+3] === 0) alpha02++;
           else if (idata2.data[i] > 200) white2++;
         }
-        console.log("[MASK] tcanvas context: white=" + white2 + " alpha0=" + alpha02 + " size=" + width + "x" + height);
+        console.log("[MASK] tcanvas verify: white=" + white2 + " alpha0=" + alpha02 + " size=" + width + "x" + height);
         const expectedArea = sels.reduce((a, s) => a + s.width * s.height, 0);
         console.log("[MASK] sels_area=" + Math.round(expectedArea) + " sels_count=" + sels.length);
         console.log("[MASK] mskB64_len=" + (atob(mskB64)).length);
@@ -706,22 +704,29 @@ function RemoveWatermark() {
       if (method === "ai") {
         const NAS_API = "https://rekklelama.iepose.cn";
         const { width, height } = src.canvas;
-        const maskData = new ImageData(width, height);
-        const mdata = maskData.data;
-        console.log("[MASK] maskData.size=" + maskData.width + "x" + maskData.height + " mdata.len=" + mdata.length + " expected=" + (width*height*4));
+        // Build mask using fillRect - create black canvas, draw white rects per selection
+        const tcanvas = document.createElement("canvas");
+        tcanvas.width = width; tcanvas.height = height;
+        const tctx = tcanvas.getContext("2d");
+        tctx.fillStyle = "black";
+        tctx.fillRect(0, 0, width, height);
+        let totalFilled = 0;
         for (const sel of sels) {
           const { x, y, width: rw, height: rh } = sel;
           const x0 = Math.max(0, x), y0 = Math.max(0, y);
           const x1 = Math.min(width, x + rw), y1 = Math.min(height, y + rh);
-          for (let yy = y0; yy < y1; yy++)
-            for (let xx = x0; xx < x1; xx++) {
-              const i = (yy * width + xx) * 4;
-              mdata[i] = mdata[i+1] = mdata[i+2] = 255; mdata[i+3] = 255;
-            }
+          const fw = x1 - x0, fh = y1 - y0;
+          if (fw > 0 && fh > 0) {
+            tctx.fillStyle = "white";
+            tctx.fillRect(x0, y0, fw, fh);
+            totalFilled += fw * fh;
+          }
         }
-        const tcanvas = document.createElement("canvas");
-        tcanvas.width = width; tcanvas.height = height;
-        tcanvas.getContext("2d").putImageData(maskData, 0, 0);
+        console.log("[MASK] fillRect total pixels filled: " + totalFilled);
+        // Verify mask by reading back a sample
+        const sampleY = Math.floor(height / 2), sampleX = Math.floor(width / 2);
+        const samplePixel = tctx.getImageData(sampleX, sampleY, 1, 1).data;
+        console.log("[MASK] center pixel rgba(" + samplePixel[0] + "," + samplePixel[1] + "," + samplePixel[2] + "," + samplePixel[3] + ")");
         const imgB64 = src.canvas.toDataURL("image/png").split(",")[1];
         const mskB64 = tcanvas.toDataURL("image/png").split(",")[1];
         const resp = await fetch(NAS_API + "/inpaint", {

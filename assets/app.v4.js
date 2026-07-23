@@ -641,20 +641,25 @@ function RemoveWatermark() {
         tcanvas.getContext("2d").putImageData(maskData, 0, 0);
         const imgB64 = src.canvas.toDataURL("image/png").split(",")[1];
         const mskB64 = tcanvas.toDataURL("image/png").split(",")[1];
-        // Count mask white pixels from the actual canvas
-        const maskCanvas = document.createElement("canvas");
-        maskCanvas.width = width; maskCanvas.height = height;
-        maskCanvas.getContext("2d").putImageData(maskData, 0, 0);
-        const maskImg = new Image();
-        let maskWhiteCount = 0;
-        maskImg.onload = () => {
-          const mc = maskCanvas.getContext("2d");
-          const idata = mc.getImageData(0, 0, width, height);
-          for (let i = 0; i < idata.data.length; i += 4) {
-            if (idata.data[i] > 200) maskWhiteCount++;
-          }
-          console.log("[DEBUG] mask white count from actual canvas:", maskWhiteCount, "of", width * height);
-        };
+        // Mask debug
+        const idata = maskData;
+        let whitePx = 0, alphaPx = 0;
+        for (let i = 0; i < idata.data.length; i += 4) {
+          if (idata.data[i+3] === 0) alphaPx++;
+          else if (idata.data[i] > 200) whitePx++;
+        }
+        console.log("[MASK] ImageData: " + idata.width + "x" + idata.height + " white=" + whitePx + " alpha0=" + alphaPx);
+        const mc = tcanvas.getContext("2d");
+        const idata2 = mc.getImageData(0, 0, width, height);
+        let white2 = 0, alpha02 = 0;
+        for (let i = 0; i < idata2.data.length; i += 4) {
+          if (idata2.data[i+3] === 0) alpha02++;
+          else if (idata2.data[i] > 200) white2++;
+        }
+        console.log("[MASK] tcanvas context: white=" + white2 + " alpha0=" + alpha02 + " size=" + width + "x" + height);
+        const expectedArea = sels.reduce((a, s) => a + s.width * s.height, 0);
+        console.log("[MASK] sels_area=" + Math.round(expectedArea) + " sels_count=" + sels.length);
+        console.log("[MASK] mskB64_len=" + (atob(mskB64)).length);
         console.log('[process] sending request, image size:', imgB64.length, 'mask size:', mskB64.length);
         const resp = await fetch(NAS_API + "/inpaint", {
           method: "POST",
